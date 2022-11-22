@@ -56,11 +56,13 @@ df <- d1 %>% left_join( d2, by = "Study.ID" ) %>% # glue d2 (redcap export of ne
   # pre-process predictor terms
   mutate_if( is.character, as.factor ) %>%
   mutate_if( grepl( "HBT", names(.) ), function(x) scale(x) ) %>%
+  mutate( Gender..0.F = as.factor( Gender..0.F), Education = scale( Education ), AGE = scale(AGE) ) %>%
   
   # set-up contrasts to avoid multicollinearity in interaction terms
   within( . , {
     contrasts(GROUP) <- contr.treatment(2) # CON = 0, PD = 1
     contrasts(AHI_LH) <- contr.treatment(2) # High = 0, Low = 1
+    contrasts(Gender..0.F) <- contr.treatment(2) # female = 0, male = 1
   } ) %>%
   
   # log-transform reaction times and false positives/negatives
@@ -104,45 +106,74 @@ for ( i in names(f) ) {
 }
 
 
-# ---- post-processing: model checks ----
+# ---- post-processing: model summaries ----
 
-# prepare a list for model checks
-check <- list()
+# prepare a list for ANOVA results and model checks
+t <- list()
 
-# fill-in the checks
+# fill-in all the values
 for ( i in names(m) ) {
   for ( j in names(m[[i]]) ) {
     
     # first fill-in all diagnostics we care about at this point
-    for ( k in names(m[[i]][[j]]) ) check[[i]][[j]][[k]] <- c(
-      normality = check_normality( m[[i]][[j]][[k]] ) %>% as.numeric(), # p ≤ .05 rejects normality
-      homoscedasticity = check_heteroskedasticity( m[[i]][[j]][[k]] ) %>% as.numeric(), # p ≤ .05 rejects homogeneity of variances
-      outliers = check_outliers( m[[i]][[j]][[k]] ) %>% sum() # number of outliers according to the default setting in the "performance" package
-    )
+    for ( k in names(m[[i]][[j]]) ) t[[i]][[j]][[k]] <- c(
+      
+      # number of subjects per group
+      ( !is.na( df[ df$GROUP == "CON", j ] ) ) %>% sum(), # number of controls
+      ( !is.na( df[ df$GROUP == "PD", j ] ) ) %>% sum(), # number of patients
+      
+      # ANOVA results
+      case_when(
+        k == "intercept" ~ rep(NA, 4) %>% as.numeric(),
+        k == "diagnosis" ~ with( m[[i]][[j]], anova( intercept, diagnosis) )[ 2, c("F","Df","Res.Df","Pr(>F)") ] %>% as.numeric(),
+        k == "ahi" ~ with( m[[i]][[j]], anova( diagnosis, ahi ) )[ 2, c("F","Df","Res.Df","Pr(>F)") ] %>% as.numeric(),
+        k == "hippo" ~ with( m[[i]][[j]], anova( ahi, hippo ) )[ 2, c("F","Df","Res.Df","Pr(>F)") ] %>% as.numeric()
+      ),
+      
+      # empty column for a statistical significance after Benjamini-Hochberg correction
+      NA,
+      
+      # model checks
+      check_normality( m[[i]][[j]][[k]] ) %>% as.numeric(), NA, # p ≤ .05 rejects normality
+      check_heteroskedasticity( m[[i]][[j]][[k]] ) %>% as.numeric(), NA, # p ≤ .05 rejects homogeneity of variances
+      check_outliers( m[[i]][[j]][[k]] ) %>% sum() # number of outliers according to the default setting in the "performance" package
+      
+    ) %>% `names<-`( c("nCON","nPD","F","df1","df2","Pr(>F)","sig.","normality (p-value)","non-normality","homoscedasticity (p-value)","heteroscedasticity","outliers") )
     
     # collapse tables for a single outcome to a neat table
-    check[[i]][[j]] <- do.call( cbind.data.frame, check[[i]][[j]] ) %>%
+    t[[i]][[j]] <- do.call( cbind.data.frame, t[[i]][[j]] ) %>%
       t() %>% # flip dimensions
       as.data.frame() %>% rownames_to_column( var = "predictors" ) # add column denoting model type
   }
   
   # collapse tables in a single domain to an even neater table
-  check[[i]] <- do.call( rbind.data.frame, check[[i]] ) %>%
+  t[[i]] <- do.call( rbind.data.frame, t[[i]] ) %>%
     rownames_to_column( var = "outcome" ) %>% # add column denoting model type
     mutate( outcome = sub( "\\..*", "", outcome) ) # tidy the outcome variable
   
 }
 
-# pull all models' diagnostics into one and flag potentially problematic models
-check <- do.call( rbind.data.frame, check ) %>%
-  rownames_to_column( var = "domain" ) %>% # add domain names
-  mutate( domain = sub( "\\..*", "", domain), # tidy the domain column
-          `non-normality` = ifelse( normality <= .05, 1, 0 ),
-          heteroscedasticity = ifelse( homoscedasticity <= .05, 1, 0 ),
-          )
+# pull all model summaries into a one neat table
+t <- do.call( rbind.data.frame, t ) %>%
+  rownames_to_column( var = "domain" ) %>%
+  mutate( domain = sub( "\\..*", "", domain) )
+
+# extract the Benjamini-Hochberg corrected threshold
+bh_thres <- data.frame( p = sort( t$`Pr(>F)`), # order the p-values from lowest to largest
+                        thres = .05 * (1:nrow( t[complete.cases(t$`Pr(>F)`),] ) ) / nrow( t[complete.cases(t$`Pr(>F)`),] ) # prepare BH thresholds for each p-value
+                        ) %>%
+  # flag BH-significant p-values and extract the largest threshold as per https://doi.org/10.1111/j.2517-6161.1995.tb02031.x
+  mutate( sig = ifelse( p <= thres, T, F ) ) %>% filter( sig == T ) %>% select(thres) %>% max()
+
+# add final touches, i.e., statistical significance decisions for ANOVAs (based on BH correction),
+# non-normality (based on nominal p < .05) and heteroscedasticity (based on nominal p < .05)
+t <- t %>% mutate( `non-normality` = ifelse( `normality (p-value)` <= .05, "!", NA ),
+                   heteroscedasticity = ifelse( `homoscedasticity (p-value)` <= .05, "!", NA ),
+                   `sig.` = ifelse( `Pr(>F)` < bh_thres, ":-)", NA )
+                   )
 
 # print as a csv
-write.table( check, "tables/model_checks.csv", sep = ",", row.names = F )
+write.table( t, "tables/models_comps_&_checks.csv", sep = ",", row.names = F, na = "" )
 
 
 # ---- post-processing: models' comparisons (via ANOVA) ---
