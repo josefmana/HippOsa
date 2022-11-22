@@ -225,3 +225,9 @@ bh_thres <- data.frame( p = sort( aov$`Pr(>F)`), # order the p-values from lowes
 
 # flag BH-corrected significant comparisons in the aov table
 aov <- aov %>% mutate( sig = ifelse( `Pr(>F)` <= bh_thres, "*", "" ) )
+
+
+# ---- session info ----
+
+# write the sessionInfo() into a .txt file
+capture.output( sessionInfo(), file = "sessions/psychoANOVAs.txt" )
