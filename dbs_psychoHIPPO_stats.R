@@ -80,16 +80,27 @@ sapply( 1:nrow(df), # loop through all the rows (subjects)
 
 # fit a series of univariate regressions with neuropsychology outcomes and gradually increasing complexity
 # of the linear predictor
+# start by listing or predictor terms to use
+preds <- c(" ~ 1", # 1) intercept only
+           " ~ 1 + GROUP", # 2) effect of diagnosis
+           " ~ 1 + GROUP * AHI_LH", # 3) added effect of AHI
+           " ~ 1 + GROUP * AHI_LH * HBT.R.BODY + GROUP * AHI_LH * HBT.L.BODY" # 4) mediation via hippocampal volume
+           )
+
+# alternatively use predictor terms including adjustments for demographics
+#preds <- c(" ~ 1 + Gender..0.F + Education + AGE",
+#           " ~ 1 + Gender..0.F + Education + AGE + GROUP",
+#           " ~ 1 + Gender..0.F + Education + AGE + GROUP * AHI_LH",
+#           " ~ 1 + Gender..0.F + Education + AGE + GROUP * AHI_LH * HBT.R.BODY + GROUP * AHI_LH * HBT.L.BODY" 
+#           )
+
+# prepare a list for formulas
 f <- list()
 
 # set-up the linear models
 for ( i in names(psych) ) {
   for ( j in psych[[i]] ) {
-    for ( k in c(" ~ 1", # 1) intercept only
-                 " ~ 1 + GROUP", # 2) effect of diagnosis
-                 " ~ 1 + GROUP * AHI_LH", # 3) added effect of AHI
-                 " ~ 1 + GROUP * AHI_LH * HBT.R.BODY + GROUP * AHI_LH * HBT.L.BODY" ) # 4) mediation via hippocampal volume
-    ) f[[i]][[j]][[k]] <- paste0( j, k ) %>% as.formula()
+    for ( k in preds ) f[[i]][[j]][[k]] <- paste0( j, k ) %>% as.formula()
   }
 }
 
@@ -117,29 +128,29 @@ for ( i in names(m) ) {
   for ( j in names(m[[i]]) ) {
     
     # first fill-in all diagnostics we care about at this point
-    for ( k in names(m[[i]][[j]]) ) t[[i]][[j]][[k]] <- c(
+    for ( k in 1:length(preds) ) t[[i]][[j]][[preds[[k]]]] <- c(
       
       # number of subjects per group
       ( !is.na( df[ df$GROUP == "CON", j ] ) ) %>% sum(), # number of controls
       ( !is.na( df[ df$GROUP == "PD", j ] ) ) %>% sum(), # number of patients
       
       # ANOVA results
-      case_when(
-        k == " ~ 1" ~ rep(NA, 4) %>% as.numeric(),
-        k == " ~ 1 + GROUP" ~ with( m[[i]][[j]], anova( ` ~ 1`, ` ~ 1 + GROUP` ) )[ 2, c("F","Df","Res.Df","Pr(>F)") ] %>% as.numeric(),
-        k == " ~ 1 + GROUP * AHI_LH" ~ with( m[[i]][[j]], anova( ` ~ 1 + GROUP`, ` ~ 1 + GROUP * AHI_LH` ) )[ 2, c("F","Df","Res.Df","Pr(>F)") ] %>% as.numeric(),
-        k == " ~ 1 + GROUP * AHI_LH * HBT.R.BODY + GROUP * AHI_LH * HBT.L.BODY" ~ with( m[[i]][[j]], anova( ` ~ 1 + GROUP * AHI_LH`, ` ~ 1 + GROUP * AHI_LH * HBT.R.BODY + GROUP * AHI_LH * HBT.L.BODY` ) )[ 2, c("F","Df","Res.Df","Pr(>F)") ] %>% as.numeric()
-      ),
+      if( k == 1 ) rep(NA, 4) %>% as.numeric(),
+      if( k != 1 ) anova( m[[i]][[j]][[k]] , m[[i]][[j]][[k-1]] )[ 2, c("F","Df","Res.Df","Pr(>F)") ] %>% as.numeric(),
       
       # empty column for a statistical significance after Benjamini-Hochberg correction
       NA,
+      
+      # Bayes Factor via the BIC approximation ( reference !! )
+      if ( k == 1 ) NA %>% as.numeric(),
+      if ( k != 1 ) exp( ( BIC(m[[i]][[j]][[k-1]]) - BIC(m[[i]][[j]][[k]]) ) / 2 ),
       
       # model checks
       check_normality( m[[i]][[j]][[k]] ) %>% as.numeric(), NA, # p ≤ .05 rejects normality
       check_heteroskedasticity( m[[i]][[j]][[k]] ) %>% as.numeric(), NA, # p ≤ .05 rejects homogeneity of variances
       check_outliers( m[[i]][[j]][[k]] ) %>% sum() # number of outliers according to the default setting in the "performance" package
       
-    ) %>% `names<-`( c("nCON","nPD","F","df1","df2","Pr(>F)","sig.","normality (p-value)","non-normality","homoscedasticity (p-value)","heteroscedasticity","outliers") )
+    ) %>% `names<-`( c("nCON","nPD","F","df1","df2","Pr(>F)","sig.","BF10","normality (p-value)","non-normality","homoscedasticity (p-value)","heteroscedasticity","outliers") )
     
     # collapse tables for a single outcome to a neat table
     t[[i]][[j]] <- do.call( cbind.data.frame, t[[i]][[j]] ) %>%
@@ -173,8 +184,9 @@ t <- t %>% mutate( `non-normality` = ifelse( `normality (p-value)` <= .05, "!", 
                    `sig.` = ifelse( `Pr(>F)` < bh_thres, ":-)", NA )
                    )
 
-# print as a csv
+# print as a csv (use the second line if demographics were adjusted for)
 write.table( t, "tables/models_comps_&_checks.csv", sep = ",", row.names = F, na = "" )
+#write.table( t, "tables/demographic_adjusted_models_comps_&_checks.csv", sep = ",", row.names = F, na = "" )
 
 
 # ---- session info ----
