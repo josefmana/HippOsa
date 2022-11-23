@@ -27,4 +27,4 @@ loaded via a namespace (and not attached):
 [41] DBI_1.1.2           magrittr_2.0.3      scales_1.2.0        cli_3.3.0           stringi_1.7.8      
 [46] fs_1.5.2            xml2_1.3.3          ellipsis_0.3.2      generics_0.1.3      vctrs_0.4.1        
 [51] nortest_1.0-4       tools_4.2.0         copula_1.1-0        glue_1.6.2          hms_1.1.1          
-[56] parallel_4.2.0      colorspace_2.0-3    rvest_1.0.2         haven_2.5.0        
+[56] colorspace_2.0-3    rvest_1.0.2         haven_2.5.0        

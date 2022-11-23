@@ -84,12 +84,13 @@ f <- list()
 
 # set-up the linear models
 for ( i in names(psych) ) {
-  for ( j in psych[[i]] ) f[[i]][[j]] <- list(
-    intercept = paste0( j, " ~ 1") %>% as.formula(), # 1) intercept only
-    diagnosis = paste0( j, " ~ 1 + GROUP" ) %>% as.formula(), # 2) effect of diagnosis
-    ahi = paste0( j, "~ 1 + GROUP * AHI_LH" ) %>% as.formula(), # 3) added effect of AHI
-    hippo =  paste0( j, " ~ 1 + GROUP * AHI_LH * HBT.R.BODY + GROUP * AHI_LH * HBT.L.BODY" ) # 4) mediation via hippocampal volume
-  )
+  for ( j in psych[[i]] ) {
+    for ( k in c(" ~ 1", # 1) intercept only
+                 " ~ 1 + GROUP", # 2) effect of diagnosis
+                 " ~ 1 + GROUP * AHI_LH", # 3) added effect of AHI
+                 " ~ 1 + GROUP * AHI_LH * HBT.R.BODY + GROUP * AHI_LH * HBT.L.BODY" ) # 4) mediation via hippocampal volume
+    ) f[[i]][[j]][[k]] <- paste0( j, k ) %>% as.formula()
+  }
 }
 
 
@@ -124,10 +125,10 @@ for ( i in names(m) ) {
       
       # ANOVA results
       case_when(
-        k == "intercept" ~ rep(NA, 4) %>% as.numeric(),
-        k == "diagnosis" ~ with( m[[i]][[j]], anova( intercept, diagnosis) )[ 2, c("F","Df","Res.Df","Pr(>F)") ] %>% as.numeric(),
-        k == "ahi" ~ with( m[[i]][[j]], anova( diagnosis, ahi ) )[ 2, c("F","Df","Res.Df","Pr(>F)") ] %>% as.numeric(),
-        k == "hippo" ~ with( m[[i]][[j]], anova( ahi, hippo ) )[ 2, c("F","Df","Res.Df","Pr(>F)") ] %>% as.numeric()
+        k == " ~ 1" ~ rep(NA, 4) %>% as.numeric(),
+        k == " ~ 1 + GROUP" ~ with( m[[i]][[j]], anova( ` ~ 1`, ` ~ 1 + GROUP` ) )[ 2, c("F","Df","Res.Df","Pr(>F)") ] %>% as.numeric(),
+        k == " ~ 1 + GROUP * AHI_LH" ~ with( m[[i]][[j]], anova( ` ~ 1 + GROUP`, ` ~ 1 + GROUP * AHI_LH` ) )[ 2, c("F","Df","Res.Df","Pr(>F)") ] %>% as.numeric(),
+        k == " ~ 1 + GROUP * AHI_LH * HBT.R.BODY + GROUP * AHI_LH * HBT.L.BODY" ~ with( m[[i]][[j]], anova( ` ~ 1 + GROUP * AHI_LH`, ` ~ 1 + GROUP * AHI_LH * HBT.R.BODY + GROUP * AHI_LH * HBT.L.BODY` ) )[ 2, c("F","Df","Res.Df","Pr(>F)") ] %>% as.numeric()
       ),
       
       # empty column for a statistical significance after Benjamini-Hochberg correction
@@ -174,57 +175,6 @@ t <- t %>% mutate( `non-normality` = ifelse( `normality (p-value)` <= .05, "!", 
 
 # print as a csv
 write.table( t, "tables/models_comps_&_checks.csv", sep = ",", row.names = F, na = "" )
-
-
-# ---- post-processing: models' comparisons (via ANOVA) ---
-
-# prepare a list for "stepwise" ANOVA results
-aov <- list()
-
-# fill-in the stats
-for ( i in names(m) ) {
-  for ( j in names(m[[i]]) ) {
-    
-    # first fill-in all comparisons for a single outcome
-    for ( k in names(m[[i]][[j]]) ) aov[[i]][[j]][[k]] <- c(
-      ( !is.na( df[ df$GROUP == "CON", j ] ) ) %>% sum(), # number of controls
-      ( !is.na( df[ df$GROUP == "PD", j ] ) ) %>% sum(), # number of patients
-      case_when(
-        k == "intercept" ~ rep(NA, 4) %>% as.numeric(),
-        k == "diagnosis" ~ with( m[[i]][[j]], anova( intercept, diagnosis) )[ 2, c("F","Df","Res.Df","Pr(>F)") ] %>% as.numeric(),
-        k == "ahi" ~ with( m[[i]][[j]], anova( diagnosis, ahi ) )[ 2, c("F","Df","Res.Df","Pr(>F)") ] %>% as.numeric(),
-        k == "hippo" ~ with( m[[i]][[j]], anova( ahi, hippo ) )[ 2, c("F","Df","Res.Df","Pr(>F)") ] %>% as.numeric()
-      )
-    ) %>% `names<-`( c("nCON", "nPD", "F", "df1", "df2", "Pr(>F)") )
-    
-    # collapse tables for a single outcome to a neat table
-    aov[[i]][[j]] <- do.call( cbind.data.frame, aov[[i]][[j]] ) %>%
-      t() %>% # flip dimensions
-      as.data.frame() %>% rownames_to_column( var = "predictors" ) # add column denoting model type
-  }
-  
-  # collapse tables in a single domain to an even neater table
-  aov[[i]] <- do.call( rbind.data.frame, aov[[i]] ) %>%
-    rownames_to_column( var = "outcome" ) %>% # add column denoting model type
-    mutate( outcome = sub( "\\..*", "", outcome) ) # tidy the outcome variable
-  
-}
-
-# pull all ANOVAs into one table and flag significant comparisons after BH correction
-aov <- do.call( rbind.data.frame, aov ) %>%
-  rownames_to_column( var = "domain" ) %>% # add domain names
-  mutate( domain = sub( "\\..*", "", domain) # tidy the domain column
-  )
-
-# extract the Benjamini-Hochberg corrected threshold
-bh_thres <- data.frame( p = sort( aov$`Pr(>F)`), # order the p-values from lowest to largest
-                        thres = .05 * ( (1:nrow(na.omit(aov)))/nrow(na.omit(aov)) ) # prepare BH thresholds for each p-value
-                        ) %>%
-  # flag BH-significant p-values and extract the largest threshold as per https://doi.org/10.1111/j.2517-6161.1995.tb02031.x
-  mutate( sig = ifelse( p <= thres, T, F ) ) %>% filter( sig == T ) %>% select(thres) %>% max()
-
-# flag BH-corrected significant comparisons in the aov table
-aov <- aov %>% mutate( sig = ifelse( `Pr(>F)` <= bh_thres, "*", "" ) )
 
 
 # ---- session info ----
