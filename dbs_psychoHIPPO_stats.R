@@ -136,7 +136,7 @@ for ( i in names(m) ) {
       
       # ANOVA results
       if( k == 1 ) rep(NA, 4) %>% as.numeric(),
-      if( k != 1 ) anova( m[[i]][[j]][[k]] , m[[i]][[j]][[k-1]] )[ 2, c("F","Df","Res.Df","Pr(>F)") ] %>% as.numeric(),
+      if( k != 1 ) anova( m[[i]][[j]][[k-1]] , m[[i]][[j]][[k]] )[ 2, c("F","Df","Res.Df","Pr(>F)") ] %>% as.numeric(),
       
       # empty column for a statistical significance after Benjamini-Hochberg correction
       NA,
