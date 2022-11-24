@@ -141,7 +141,7 @@ for ( i in names(m) ) {
       # empty column for a statistical significance after Benjamini-Hochberg correction
       NA,
       
-      # Bayes Factor via the BIC approximation ( reference !! )
+      # Bayes Factor via the BIC approximation (https://doi.org/10.3758/BF03194105)
       if ( k == 1 ) NA %>% as.numeric(),
       if ( k != 1 ) exp( ( BIC(m[[i]][[j]][[k-1]]) - BIC(m[[i]][[j]][[k]]) ) / 2 ),
       
@@ -174,7 +174,7 @@ t <- do.call( rbind.data.frame, t ) %>%
 bh_thres <- data.frame( p = sort( t$`Pr(>F)`), # order the p-values from lowest to largest
                         thres = .05 * (1:nrow( t[complete.cases(t$`Pr(>F)`),] ) ) / nrow( t[complete.cases(t$`Pr(>F)`),] ) # prepare BH thresholds for each p-value
                         ) %>%
-  # flag BH-significant p-values and extract the largest threshold as per https://doi.org/10.1111/j.2517-6161.1995.tb02031.x
+  # flag BH-significant p-values and extract the largest threshold (https://doi.org/10.1111/j.2517-6161.1995.tb02031.x)
   mutate( sig = ifelse( p <= thres, T, F ) ) %>% filter( sig == T ) %>% select(thres) %>% max()
 
 # add final touches, i.e., statistical significance decisions for ANOVAs (based on BH correction),
