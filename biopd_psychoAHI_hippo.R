@@ -127,7 +127,7 @@ t <- list()
 for ( i in names(m) ) {
   for ( j in names(m[[i]]) ) {
     
-    # first fill-in all diagnostics we care about at this point
+    # fill-in all values we care about at this point
     for ( k in 1:length(preds) ) t[[i]][[j]][[preds[[k]]]] <- c(
       
       # number of subjects per group
@@ -135,7 +135,7 @@ for ( i in names(m) ) {
       ( !is.na( df[ df$GROUP == "PD", j ] ) ) %>% sum(), # number of patients
       
       # ANOVA results
-      if( k == 1 ) rep(NA, 4) %>% as.numeric(),
+      if( k == 1 ) rep(NA, length(preds) ) %>% as.numeric(),
       if( k != 1 ) anova( m[[i]][[j]][[k-1]] , m[[i]][[j]][[k]] )[ 2, c("F","Df","Res.Df","Pr(>F)") ] %>% as.numeric(),
       
       # empty column for a statistical significance after Benjamini-Hochberg correction
