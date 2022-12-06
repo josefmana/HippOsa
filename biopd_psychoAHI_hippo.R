@@ -94,6 +94,13 @@ preds <- c(" ~ 1", # 1) intercept only
 #           " ~ 1 + Gender..0.F + Education + AGE + GROUP * AHI_LH * HBT.R.BODY + GROUP * AHI_LH * HBT.L.BODY" 
 #           )
 
+# lastly, test for the AHI * PD * AGE interaction adjusting estimates for demographics (similarly to biopd_psychoAHI_pd_only.R)
+#preds <- c(" ~ 1 + Gender..0.F + Education",
+#           " ~ 1 + Gender..0.F + Education + AGE",
+#           " ~ 1 + Gender..0.F + Education + AGE * GROUP",
+#           " ~ 1 + Gender..0.F + Education + AGE * GROUP * AHI_LH" 
+#           )
+
 # prepare a list for formulas
 f <- list()
 
@@ -187,6 +194,7 @@ t <- t %>% mutate( `non-normality` = ifelse( `normality (p-value)` <= .05, "!", 
 # print as a csv (use the second line if demographics were adjusted for)
 write.table( t, "tables/models_comps_&_checks.csv", sep = ",", row.names = F, na = "" )
 #write.table( t, "tables/demographic_adjusted_models_comps_&_checks.csv", sep = ",", row.names = F, na = "" )
+#write.table( t, "tables/age_interaction_comps_&_checks.csv", sep = ",", row.names = F, na = "" )
 
 
 # ---- session info ----
