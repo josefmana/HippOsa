@@ -1,38 +1,36 @@
-# set working directory (works only in RStudio)
-setwd( dirname(rstudioapi::getSourceEditorContext()$path) )
+# Computes regressions evaluating the effect of hippocampal volume on cognitive performance conditional on AHI and diagnosis.
 
-# list required packages into a character object
-pkgs <- c( "tidyverse", "dplyr", # data wrangling
-           "ggplot2", "patchwork", # plotting
-           "performance" # model quality checking
-           )
+rm( list = ls() ) # clear environment
 
-# load or install packages as needed
-for ( i in pkgs ) {
-  if ( i %in% rownames( installed.packages() ) == F ) install.packages(i) # install if it ain't installed yet
-  if ( i %in% names( sessionInfo()$otherPkgs ) == F ) library( i , character.only = T ) # load if it ain't loaded yet
-}
+# load packages
+library(here)
+library(openxlsx)
+library(tidyverse)
+library(ggdag)
+library(patchwork)
+library(performance)
 
 # create folders "models", "figures", "tables" and "sessions" to store results and sessions info in
 # prints TRUE and creates the folder if it was not present, prints NULL if the folder was already present.
-sapply( c("models", "figures", "tables", "sessions"), function(i) if( !dir.exists(i) ) dir.create(i) )
+sapply( c("mods", "figs", "tabs"), function(i) if( !dir.exists(i) ) dir.create(i) )
 
 # set ggplot theme
-theme_set( theme_minimal(base_size = 14) )
+theme_set( theme_bw(base_size = 14) )
 
 # prepare colors to use in graphs (a colorblind-friendly palette)
 cbPal <- c( "#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7" )
 
 # list all tests in the battery
 # note: need to extract only those measures that are common across PD and CON, it ain't a level-II battery
-psych <- list( memory = paste0( "avlt_", c("1_5","6","8","r_fp","r_fn") ),
-               attention = c( "tmt_a", paste0("stroop_", c("body","slova") ) ),
-               executive = c( "tmt_b", "stroop_barvy" ),
-               speed = paste0( "gpt_", c("phk","lhk") )
-               )
+psych <- list(
+  memory = paste0( "avlt_", c("1_5","6","8","r_fp","r_fn") ),
+  attention = c( "tmt_a", paste0("stroop_", c("body","slova") ) ),
+  executive = c( "tmt_b", "stroop_barvy" ),
+  speed = paste0( "gpt_", c("phk","lhk") )
+)
 
 # read the data set
-d1 <- read.csv( "data/pd_con.csv" , sep = "," )
+d1 <- read.xlsx()
 d2 <- read.csv( "data/20221120_redcap_export.csv", sep = "," )
 
 
