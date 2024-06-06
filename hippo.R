@@ -8,7 +8,8 @@ library(openxlsx)
 library(tidyverse)
 library(ggdag)
 library(patchwork)
-library(performance)
+library(brms)
+#library(performance)
 
 # create folders "models", "figures", "tables" and "sessions" to store results and sessions info in
 # prints TRUE and creates the folder if it was not present, prints NULL if the folder was already present.
@@ -30,60 +31,138 @@ psych <- list(
 )
 
 # read the data set
-d1 <- read.xlsx()
-d2 <- read.csv( "data/20221120_redcap_export.csv", sep = "," )
+d1 <- read.xlsx( here("_raw","TabHippAm1.xlsx") )
+d2 <- read.csv( here("_raw","20221120_redcap_export.csv"), sep = "," )
 
 
-# ---- pre-processing  ----
-
-# keep only included subjects in d2
-d2 <- d2 %>%
-  mutate( Study.ID = sub( "-", "", study_id ) ) %>%
-  slice( which( Study.ID %in% unique(d1$Study.ID) ) )
+# PRE-PROCESSING  ----
 
 # prepare a data frame for analyses
-df <- d1 %>% left_join( d2, by = "Study.ID" ) %>% # glue d2 (redcap export of neuropsychology) to d1 (Kris's data file)
+df <- left_join(
   
-  # select only those columns (variables) that we will need
-  select( Study.ID, # subject's id
-          which( names(.) %in% unlist(psych) ), # neuropsychological tests
-          GROUP, AHI_LH, Gender..0.F, AGE, Education, # diagnosis (GROUP) and demographics
-          contains( "HBT" ) & contains( "BODY" ) # hippocampus body volumes
-          ) %>%
+  d1 %>% mutate( TIV = as.numeric( scale(`SBTIVmm^3`) ), across( contains("_"), ~ as.numeric( scale(.x) ) ) ),
+  d2 %>% mutate( Study.ID = sub("-","",study_id) ) %>% select( Study.ID, all_of( unlist(psych, use.names = F) ) ),
+  by = "Study.ID"
+  
+  
+) %>%
   
   # pre-process predictor terms
   mutate_if( is.character, as.factor ) %>%
-  mutate_if( grepl( "HBT", names(.) ), function(x) scale(x) ) %>%
-  mutate( Gender..0.F = as.factor( Gender..0.F), Education = scale( Education ), AGE = scale(AGE) ) %>%
+  mutate( GENDER = as.factor(GENDER), across( c("EDU.Y","AGE"), ~ as.numeric( scale(.x) ) ) ) %>%
   
   # set-up contrasts to avoid multicollinearity in interaction terms
   within( . , {
-    contrasts(GROUP) <- contr.treatment(2) # CON = 0, PD = 1
-    contrasts(AHI_LH) <- contr.treatment(2) # High = 0, Low = 1
-    contrasts(Gender..0.F) <- contr.treatment(2) # female = 0, male = 1
+    contrasts(SUBJ) <- contr.sum(2)/2 # CON = 0.5, PD = -0.5
+    contrasts(AHI.F) <- contr.sum(2)/2 # High = 0.5, Low = -0.5
+    contrasts(GENDER) <- contr.sum(2)/2 # female = 0.5, male = -0.5
   } ) %>%
   
-  # log-transform reaction times and false positives/negatives
-  mutate_if( names(.) %in% unlist( psych[2:4] ), function(x) log(x) ) %>%
-  mutate_if( grepl( "avlt_r", names(.) ), function(x) log(x+1) )
+  # scale outcome and demographic variables
+  mutate(
+    across( "avlt_1_5", ~ as.numeric( scale(.x) ) ),
+    across( all_of( unlist(psych[2:4], use.names = F) ), ~ as.numeric( scale(.x, center = F) ) )
+  )
 
 # check for missing values
-sapply( 1:nrow(df), # loop through all the rows (subjects)
-        function(i) if ( sum( is.na(df[i,]) ) > 0 ) df[i,] # print the full entry of each subject with missing value
-        ) %>%
-  do.call( rbind.data.frame , . ) # put all rows with missing values together
+sapply( 1:nrow(df),  function(i) if ( sum( is.na(df[i,]) ) > 0 ) df[i,] ) %>% do.call( rbind.data.frame , . )
 
 
-# ---- representation: statistical model  ----
+# CAUSAL ASSUMPTIONS ----
+
+# set-up coordinates for nodes
+coords <- data.frame( name = c("cog","AHI","PD","Hippo","Age","Edu","Sex","TIV"), x = c(2,0,1,1,0,2,1,2), y = c(0,0,1,2,-2,-2,-2,2) )
+
+# DAG with AHI ~ Hippocampus being confounded
+dag1 <- dagify(
+  
+  cog ~ AHI + PD + Hippo + Age + Edu + Sex + TIV,
+  AHI ~ PD + Age + Sex,
+  PD ~ Age + Sex,
+  Hippo ~ PD + Age + TIV,
+  Edu ~ Sex,
+  TIV ~ PD + Sex,
+  AHI ~~ Hippo,
+  coords = coords
+
+)
+
+# DAG with AHI causing Hippocampal volume
+dag2 <- dagify(
+  
+  cog ~ AHI + PD + Hippo + Age + Edu + Sex + TIV,
+  AHI ~ PD + Age + Sex,
+  PD ~ Age + Sex,
+  Hippo ~ AHI + PD + Age + TIV,
+  Edu ~ Sex,
+  TIV ~ PD + Sex,
+  coords = coords
+  
+)
+
+# set-up theme
+theme_set( theme_dag() )
+
+# set-up function for adjustment sets plotting
+dag_plot <- function(dag, iv, dv, eff = "direct", leg = "none") ggdag_adjustment_set(dag, exposure = iv, outcome = dv, effect = eff, type = "minimal", shadow = F) + theme(legend.position = leg)
+
+# plot it
+( ggdag(dag1) | ggdag(dag2)  ) /
+( dag_plot(dag1, "PD", "cog", "total", "none") |  dag_plot(dag2, "PD", "cog", "total", "none") ) /
+( dag_plot(dag1, c("PD","AHI"), "cog", "total", "none") | dag_plot(dag2, c("PD","AHI"), "cog", "total", "none") ) /
+( dag_plot(dag1, c("PD","AHI","Hippo"), "cog", "direct", "none") | dag_plot(dag2, c("PD","AHI","Hippo"), "cog", "direct", "none") ) +
+  plot_annotation(tag_levels = "A")
+
+# save it
+ggsave( here("figs","hippo_dags.jpg"), dpi = 300, width = 10, height = 15 )
+  
+
+# STAT MODELS ----
+
+# set-up a table with outcome information
+outs <- data.frame(
+  outcome = unlist(psych, use.names = F),
+  likelihood = c( "gaussian", rep("binomial",4), rep("shifted_lognormal",7) ),
+  tilde = c( " ~", rep(" | trials(15) ~",2), " | trials(35) ~", " | trials(15) ~", rep(" ~",7)  )
+)
+
+# set-up prediction terms
+preds <- c(
+  "SUBJ + AGE + GENDER + EDU.Y",
+  "SUBJ * AHI.F + AGE + GENDER + EDU.Y",
+  "SUBJ * AHI.F * R_Hipp_tail + SUBJ * AHI.F * L_Hipp_tail + TIV + AGE + GENDER + EDU.Y",
+  "SUBJ * AHI.F * R_Hipp_body + SUBJ * AHI.F * L_Hipp_body + TIV + AGE + GENDER + EDU.Y",
+  "SUBJ * AHI.F * R_Hipp_head + SUBJ * AHI.F * L_Hipp_head + TIV + AGE + GENDER + EDU.Y",
+  "SUBJ * AHI.F * R_hippocampus + SUBJ * AHI.F * L_hippocampus + TIV + AGE + GENDER + EDU.Y",
+  "SUBJ * AHI.F * R_amygdala + SUBJ * AHI.F * L_amygdala + TIV + AGE + GENDER + EDU.Y"
+)
+
+# fit a series of univariate regressions
+fit <- lapply(
+  
+  setNames( 1:nrow(outs), outs$outcome ),
+  function(i)
+    
+    lapply(
+      
+      setNames(preds,preds),
+      function(j)
+        
+        brm(
+          formula = bf( as.formula( paste0( outs$outcome[i], outs$tilde[i], " ", j ) ) ),
+          data = df,
+          family = outs$likelihood[i],
+          prior = NULL
+        )
+      
+    )
+  
+)
 
 # fit a series of univariate regressions with neuropsychology outcomes and gradually increasing complexity
 # of the linear predictor
 # start by listing or predictor terms to use
-preds <- c(" ~ 1", # 1) intercept only
-           " ~ 1 + GROUP", # 2) effect of diagnosis
-           " ~ 1 + GROUP * AHI_LH", # 3) added effect of AHI
-           " ~ 1 + GROUP * AHI_LH * HBT.R.BODY + GROUP * AHI_LH * HBT.L.BODY" # 4) mediation via hippocampal volume
-           )
+
 
 # alternatively use predictor terms including adjustments for demographics
 #preds <- c(" ~ 1 + Gender..0.F + Education + AGE",
