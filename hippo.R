@@ -8,27 +8,20 @@ library(openxlsx)
 library(tidyverse)
 library(ggdag)
 library(patchwork)
-library(brms)
-#library(performance)
+library(car) # for easy to compute Type II and Type III sum of squares
+library(performance)
 
 # create folders "models", "figures", "tables" and "sessions" to store results and sessions info in
 # prints TRUE and creates the folder if it was not present, prints NULL if the folder was already present.
 sapply( c("mods", "figs", "tabs"), function(i) if( !dir.exists(i) ) dir.create(i) )
 
-# set ggplot theme
-theme_set( theme_bw(base_size = 14) )
-
-# prepare colors to use in graphs (a colorblind-friendly palette)
-cbPal <- c( "#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7" )
+# sensible contrasts for Type III Anovas
+options( contrasts = c("contr.sum","contr.poly") )
 
 # list all tests in the battery
 # note: need to extract only those measures that are common across PD and CON, it ain't a level-II battery
-psych <- list(
-  memory = paste0( "avlt_", c("1_5","6","8","r_fp","r_fn") ),
-  attention = c( "tmt_a", paste0("stroop_", c("body","slova") ) ),
-  executive = c( "tmt_b", "stroop_barvy" ),
-  speed = paste0( "gpt_", c("phk","lhk") )
-)
+psych <- read.csv("psychs.csv", sep = ";")
+preds <- read.csv("brains.csv", sep = ";")
 
 # read the data set
 d1 <- read.xlsx( here("_raw","TabHippAm1.xlsx") )
@@ -38,40 +31,46 @@ d2 <- read.csv( here("_raw","20221120_redcap_export.csv"), sep = "," )
 # PRE-PROCESSING  ----
 
 # prepare a data frame for analyses
-df <- left_join(
-  
-  d1 %>% mutate( TIV = as.numeric( scale(`SBTIVmm^3`) ), across( contains("_"), ~ as.numeric( scale(.x) ) ) ),
-  d2 %>% mutate( Study.ID = sub("-","",study_id) ) %>% select( Study.ID, all_of( unlist(psych, use.names = F) ) ),
-  by = "Study.ID"
-  
-  
-) %>%
+d0 <- left_join( d1, d2 %>% mutate( Study.ID = sub("-","",study_id) ) %>% select( Study.ID, all_of(psych$variable) ), by = "Study.ID" )
+
+# format it for analyses
+df <- d0 %>%
   
   # pre-process predictor terms
   mutate_if( is.character, as.factor ) %>%
+  mutate( TIV = as.numeric( scale(`SBTIVmm^3`) ), across( contains("L_") | contains("R_"), ~ as.numeric( scale(.x) ) ) ) %>%
   mutate( GENDER = as.factor(GENDER), across( c("EDU.Y","AGE"), ~ as.numeric( scale(.x) ) ) ) %>%
   
   # set-up contrasts to avoid multicollinearity in interaction terms
-  within( . , {
-    contrasts(SUBJ) <- contr.sum(2)/2 # CON = 0.5, PD = -0.5
-    contrasts(AHI.F) <- contr.sum(2)/2 # High = 0.5, Low = -0.5
-    contrasts(GENDER) <- contr.sum(2)/2 # female = 0.5, male = -0.5
-  } ) %>%
-  
-  # scale outcome and demographic variables
+  #within( . , {
+  #  contrasts(SUBJ) <- contr.sum(2)/2 # CON = 0.5, PD = -0.5
+  #  contrasts(AHI.F) <- contr.sum(2)/2 # High = 0.5, Low = -0.5
+  #  contrasts(GENDER) <- contr.sum(2)/2 # female = 0.5, male = -0.5
+  #} ) %>%
+
+  # scale outcome variables
   mutate(
-    across( "avlt_1_5", ~ as.numeric( scale(.x) ) ),
-    across( all_of( unlist(psych[2:4], use.names = F) ), ~ as.numeric( scale(.x, center = F) ) )
+#    across( "avlt_1_5", ~ as.numeric( scale(.x) ) ),
+    across( all_of( subset(psych, domain == "Memory")$variable ), ~ as.numeric( scale(.x) ) ),
+    across( all_of( subset(psych, domain != "Memory")$variable ), ~ as.numeric( scale( log(.x) ) ) )
   )
 
 # check for missing values
-sapply( 1:nrow(df),  function(i) if ( sum( is.na(df[i,]) ) > 0 ) df[i,] ) %>% do.call( rbind.data.frame , . )
+sapply( 1:nrow(df),  function(i) if ( sum( is.na(df[i, ]) ) > 0 ) df[i, ] ) %>%
+  do.call( rbind.data.frame , . ) %>%
+  mutate_if( is.numeric, round, 2 )
 
 
 # CAUSAL ASSUMPTIONS ----
 
 # set-up coordinates for nodes
-coords <- data.frame( name = c("cog","AHI","PD","Hippo","Age","Edu","Sex","TIV"), x = c(2,0,1,1,0,2,1,2), y = c(0,0,1,2,-2,-2,-2,2) )
+coords <- data.frame(
+
+  name = c("cog","AHI","PD","Hippo","Age","Edu","Sex","TIV"),
+  x = c(2,0,1,1,0,2,1,2),
+  y = c(0,0,1,2,-2,-2,-2,2)
+
+)
 
 # DAG with AHI ~ Hippocampus being confounded
 dag1 <- dagify(
@@ -89,7 +88,7 @@ dag1 <- dagify(
 
 # DAG with AHI causing Hippocampal volume
 dag2 <- dagify(
-  
+
   cog ~ AHI + PD + Hippo + Age + Edu + Sex + TIV,
   AHI ~ PD + Age + Sex,
   PD ~ Age + Sex,
@@ -97,7 +96,7 @@ dag2 <- dagify(
   Edu ~ Sex,
   TIV ~ PD + Sex,
   coords = coords
-  
+
 )
 
 # set-up theme
@@ -119,90 +118,126 @@ ggsave( here("figs","hippo_dags.jpg"), dpi = 300, width = 10, height = 15 )
 
 # STAT MODELS ----
 
-# set-up a table with outcome information
-outs <- data.frame(
-  outcome = unlist(psych, use.names = F),
-  likelihood = c( "gaussian", rep("binomial",4), rep("shifted_lognormal",7) ),
-  tilde = c( " ~", rep(" | trials(15) ~",2), " | trials(35) ~", " | trials(15) ~", rep(" ~",7)  )
-)
-
-# set-up prediction terms
-preds <- c(
-  "SUBJ + AGE + GENDER + EDU.Y",
-  "SUBJ * AHI.F + AGE + GENDER + EDU.Y",
-  "SUBJ * AHI.F * R_Hipp_tail + SUBJ * AHI.F * L_Hipp_tail + TIV + AGE + GENDER + EDU.Y",
-  "SUBJ * AHI.F * R_Hipp_body + SUBJ * AHI.F * L_Hipp_body + TIV + AGE + GENDER + EDU.Y",
-  "SUBJ * AHI.F * R_Hipp_head + SUBJ * AHI.F * L_Hipp_head + TIV + AGE + GENDER + EDU.Y",
-  "SUBJ * AHI.F * R_hippocampus + SUBJ * AHI.F * L_hippocampus + TIV + AGE + GENDER + EDU.Y",
-  "SUBJ * AHI.F * R_amygdala + SUBJ * AHI.F * L_amygdala + TIV + AGE + GENDER + EDU.Y"
-)
-
 # fit a series of univariate regressions
 fit <- lapply(
   
-  setNames( 1:nrow(outs), outs$outcome ),
+  setNames( 1:nrow(psych), psych$label ),
   function(i)
     
     lapply(
       
-      setNames(preds,preds),
-      function(j)
+      setNames( 1:nrow(preds),preds$predictor ),
+      function(j) {
         
-        brm(
-          formula = bf( as.formula( paste0( outs$outcome[i], outs$tilde[i], " ", j ) ) ),
-          data = df,
-          family = outs$likelihood[i],
-          prior = NULL
-        )
-      
+        form <- paste0( psych$LHS[i], preds$RHS[j] )
+        #print( paste0("outcome: ",psych$label[i],", predictor: ",preds$label[j],", likelihood: ",psych$likelihood[i],", formula: ",form) )
+        
+        #if( psych$likelihood[i] == "gaussian" ) mod <-  lm( formula = as.formula(form), data = df )
+        #else if( psych$likelihood[i] == "binomial" ) mod <- glm( formula = as.formula(form), data = df, family = binomial() )
+        return( lm( formula = as.formula(form), data = df ) )
+        
+      }
     )
   
 )
 
-# fit a series of univariate regressions with neuropsychology outcomes and gradually increasing complexity
-# of the linear predictor
-# start by listing or predictor terms to use
+
+# MODEL SUMMARIES ----
+
+# set theme for plotting
+theme_set( theme_bw(base_size = 14) )
+
+# extract statistical tests results
+tab2 <- lapply(
+  
+  with( preds, setNames(predictor,predictor) ),
+  function(i)
+    
+    sapply(
+      
+      names(fit),
+      function(j) {
+        
+        print( paste0("outcome: ",j,", predictor: ",i) )
+        
+        Anova(fit[[j]][[i]], type = 3)[i, ] %>%
+          as.data.frame() %>%
+          #rename_with( ~ "p value", starts_with("Pr(>") ) %>%
+          #rename_with( ~ "Test statistic", any_of( c("F value","LR Chisq") ) ) %>%
+          #select(`Test statistic`, Df, `p value`) %>%
+          select( starts_with("F value"), Df, starts_with("Pr(>") ) %>%
+          return()
+        
+      }
+    ) %>%
+    
+    t() %>%
+    as.data.frame() %>%
+    mutate( across( everything(), ~ unlist(.x, use.names = F) ) ) %>%
+    rownames_to_column("Outcome") %>%
+    mutate( Predictor = preds[ preds$predictor == i, "label2" ], .before = 1 ) %>%
+    mutate( `Domain: ` = sapply( 1:nrow(.), function(j) psych[ psych$label == Outcome[j], "domain"] ) )
+  
+) %>%
+  
+  do.call( rbind.data.frame, . ) %>%
+  mutate( Predictor = factor(Predictor, levels = rev(preds$label2), ordered = T) ) %>%
+  mutate( Outcome = factor(Outcome, levels = psych$label, ordered = T) ) %>%
+  mutate( `Domain: ` = factor(`Domain: `, levels = unique(psych$domain), ordered = T) )
+
+# write as csv
+write.table( x = tab2, file = here("tabs","hippo_anovas.csv"), sep = ",", row.names = F, quote = F )
+
+# plot p-values
+tab2 %>%
+  
+  ggplot() +
+  aes(x = `Pr(>F)`, y = Predictor, fill = `Domain: `) +
+  geom_bar(stat = "identity") +
+  labs( x = "p-value", y = NULL ) +
+  geom_vline( xintercept = .05, linetype = "solid", linewidth = 1, colour = "black" ) +
+  facet_wrap( ~ Outcome ) +
+  scale_fill_manual( values = c("#F9A729","#64CDCC","#A4A4D5","#5FBB68") ) +
+  theme(legend.position = "bottom")
+
+# save it
+ggsave( plot = last_plot(), file = here("figs","hippo_pvalues.jpg"), dpi = 300, width = 12.6, height = 13.3 )
+
+# plot interactions per outcome
+fig2 <-
+  
+  lapply(
+    
+    with( psych, setNames(variable,label) ),
+    function(i)
+      
+      d0 %>%
+      select( SUBJ, AHI.F, all_of(i), all_of(sub("SUBJ:AHI.F:","c",preds$predictor)[-c(1:2)]) ) %>%
+      pivot_longer( cols = starts_with("c"), names_to = "Structure", values_to = "Volume" ) %>%
+      
+      mutate( `Group: ` = case_when(SUBJ == "CON" ~ "HC", SUBJ == "PD" ~ "PD") ) %>%
+      mutate( AHI = factor( case_when(AHI.F == "L" ~ "low AHI", AHI.F == "H" ~ "high AHI"), levels = paste0( c("low","high"), " AHI"), ordered = T ) ) %>%
+      
+      mutate( Structure = sub("c","SUBJ:AHI.F:",Structure) ) %>%
+      mutate( Structure = sapply( 1:nrow(.), function(i) preds[ preds$predictor == Structure[i], "label2" ], USE.NAMES = F ) ) %>%
+      mutate( Structure = factor( Structure, levels = preds$label2[-c(1:2)], ordered = T ) ) %>%
+      
+      ggplot() +
+      aes(x = Volume, y = get(i), colour = `Group: `, fill = `Group: `) +
+      geom_point(size = 3) +
+      labs( x = bquote("Standardized volume"~("mm"^3) ), y = with( psych, label2[variable == i] ) ) +
+      geom_smooth(method = "lm", linewidth = 1.5, alpha = .25) +
+      ggh4x::facet_grid2( Structure ~ AHI, scales = "free_x", independent = "x" ) +
+      theme_bw( base_size = 16 ) +
+      theme(legend.position = "bottom")
+    
+  )
+
+# save it
+for( i in names(fig2) ) ggsave( plot = fig2[[i]], file = here( "figs", paste0(i,"_intplot.jpg") ), dpi = 300, width = 12.6, height = 26.6 )
 
 
-# alternatively use predictor terms including adjustments for demographics
-#preds <- c(" ~ 1 + Gender..0.F + Education + AGE",
-#           " ~ 1 + Gender..0.F + Education + AGE + GROUP",
-#           " ~ 1 + Gender..0.F + Education + AGE + GROUP * AHI_LH",
-#           " ~ 1 + Gender..0.F + Education + AGE + GROUP * AHI_LH * HBT.R.BODY + GROUP * AHI_LH * HBT.L.BODY" 
-#           )
 
-# lastly, test for the AHI * PD * AGE interaction adjusting estimates for demographics (similarly to biopd_psychoAHI_pd_only.R)
-#preds <- c(" ~ 1 + Gender..0.F + Education",
-#           " ~ 1 + Gender..0.F + Education + AGE",
-#           " ~ 1 + Gender..0.F + Education + AGE * GROUP",
-#           " ~ 1 + Gender..0.F + Education + AGE * GROUP * AHI_LH" 
-#           )
-
-# prepare a list for formulas
-f <- list()
-
-# set-up the linear models
-for ( i in names(psych) ) {
-  for ( j in psych[[i]] ) {
-    for ( k in preds ) f[[i]][[j]][[k]] <- paste0( j, k ) %>% as.formula()
-  }
-}
-
-
-# ---- implementation: learning from the data  ----
-
-# use the default lm() function to fit the regressions via the QR-decomposition and least squares
-m <- list()
-
-# loop through all linear models in f, select appropriate likelihoods and links (via family argument)
-for ( i in names(f) ) {
-  for ( j in names(f[[i]]) ) {
-    for ( k in names(f[[i]][[j]]) ) m[[i]][[j]][[k]] <- lm( formula = f[[i]][[j]][[k]], data = df )
-  }
-}
-
-
-# ---- post-processing: model summaries ----
 
 # prepare a list for ANOVA results and model checks
 t <- list()
@@ -272,9 +307,3 @@ t <- t %>% mutate( `non-normality` = ifelse( `normality (p-value)` <= .05, "!", 
 write.table( t, "tables/models_comps_&_checks.csv", sep = ",", row.names = F, na = "" )
 #write.table( t, "tables/demographic_adjusted_models_comps_&_checks.csv", sep = ",", row.names = F, na = "" )
 #write.table( t, "tables/age_interaction_comps_&_checks.csv", sep = ",", row.names = F, na = "" )
-
-
-# ---- session info ----
-
-# write the sessionInfo() into a .txt file
-capture.output( sessionInfo(), file = "sessions/psychoANOVAs.txt" )

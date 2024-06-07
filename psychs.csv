@@ -1,0 +1,13 @@
+variable;label;domain;likelihood;LHS;label2
+avlt_1_5;RAVLT-IR;Memory;gaussian;avlt_1_5 ~ ;RAVLT-IR (words)
+avlt_6;RAVLT-B;Memory;binomial;avlt_6 ~ ;RAVLT-B (words)
+avlt_8;RAVLT-DR;Memory;binomial;avlt_8 ~ ;RAVLT-DR (words)
+avlt_r_fp;RAVLT-Rec-FP;Memory;binomial;avlt_r_fp ~ ;RAVLT-Rec-FP (words)
+avlt_r_fn;RAVLT-Rec-FN;Memory;binomial;avlt_r_fn ~ ;RAVLT-Rec-FN (words)
+tmt_a;TMT-A;Attention;gaussian;tmt_a ~ ;TMT-A (seconds)
+stroop_body;PST-D;Attention;gaussian;stroop_body ~ ;PST-D (seconds)
+stroop_slova;PST-W;Attention;gaussian;stroop_slova ~ ;PST-W (seconds)
+tmt_b;TMT-B;Executive function;gaussian;tmt_b ~ ;TMT-B (seconds)
+stroop_barvy;PST-C;Executive function;gaussian;stroop_barvy ~ ;PST-C (seconds)
+gpt_phk;GPT right;Processing speed;gaussian;gpt_phk ~ ;GPT right (seconds)
+gpt_lhk;GPT left;Processing speed;gaussian;gpt_lhk ~ ;GPT left (seconds)
