@@ -2,10 +2,12 @@
 mods/**/*.rds
 **/.DS_Store
 
-# ignore all _ folders but include _ files
+# ignore all _ folders & files
 _*/
+**/_*
 
 # History files
+.Rprofile
 .Rhistory
 .Rapp.history
 
