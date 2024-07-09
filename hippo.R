@@ -32,13 +32,13 @@ zerolead <- function(x, d = 3) ifelse( x < .001, "< .001", sub("0.", ".", rprint
 msd <- function(x, d = 2) paste0( rprint( mean(x, na.rm = T), d ), " ± ", rprint( sd(x, na.rm = T), d ) )
 
 # fit propensity scores weighted regression
-fit_reg <- function(d, outcomes) lapply(
+fit_reg <- function(d, outcomes, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV") lapply(
   
   setNames(outcomes, outcomes),
   function(y)
     
     lm(
-      formula = as.formula( paste0(y," ~ SUBJ * AHI.F + SBTIV") ),
+      formula = as.formula( paste0(y," ~ ",X) ),
       data = d,
       weights = weights
     )
