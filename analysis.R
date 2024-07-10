@@ -9,8 +9,9 @@ library(tidyverse)
 library(ggdag)
 library(patchwork)
 library(MatchIt)
-library(car) # for easy to compute Type II and Type III sum of squares
+#library(car) # for easy to compute Type II and Type III sum of squares
 library(performance)
+library(marginaleffects) # for inference using g-computation
 
 # prints TRUE and creates the folder if it was not present, prints NULL if the folder was already present
 sapply( c("figs","tabs"), function(i) if( !dir.exists(i) ) dir.create(i) )
@@ -66,26 +67,44 @@ lm_dia <- function(fit, outcomes) sapply(
   rownames_to_column("Outcome")
 
 # extract ANOVAs and regression coefficients for interactions
-lm_res <- function(fit, outcomes) sapply(
+#lm_res <- function(fit, outcomes) sapply(
+#  
+#  outcomes,
+#  function(y)
+#    
+#    Anova(fit[[y]], type = 3)["SUBJ:AHI.F", ] %>%
+#    as.data.frame() %>%
+#    select( starts_with("F value"), Df, starts_with("Pr(>") ) %>%
+#    mutate( # add beta coefficient estimates
+#      beta = summary(fit[[y]])$coefficients[sub( "AHI.F", "AHI.F1", sub("SUBJ","SUBJ1","SUBJ:AHI.F") ), "Estimate"],
+#      b2.5 = confint(fit[[y]])[sub( "AHI.F", "AHI.F1", sub("SUBJ","SUBJ1","SUBJ:AHI.F") ), "2.5 %"],
+#      b97.5 = confint(fit[[y]])[sub( "AHI.F", "AHI.F1", sub("SUBJ","SUBJ1","SUBJ:AHI.F") ), "97.5 %"]
+#    )
+#  
+#) %>%
+#  
+#  t() %>%
+#  as.data.frame() %>%
+#  mutate_if(is.list, as.numeric) %>%
+#  rownames_to_column("structure")
+
+# extract average per diagnosis slopes and interaction estimates using marginaleffects
+meff <- function(fit, outcomes) lapply(
   
   outcomes,
   function(y)
     
-    Anova(fit[[y]], type = 3)["SUBJ:AHI.F", ] %>%
+    full_join(
+      avg_comparisons(fit[[y]], variables = "AHI.F", by = "SUBJ", wts = "weights", vcov = ~subclass),
+      avg_comparisons(fit[[y]], variables = "AHI.F", by = "SUBJ", wts = "weights", vcov = ~subclass, hypothesis = "revpairwise")
+    ) %>%
+    
     as.data.frame() %>%
-    select( starts_with("F value"), Df, starts_with("Pr(>") ) %>%
-    mutate( # add beta coefficient estimates
-      beta = summary(fit[[y]])$coefficients[sub( "AHI.F", "AHI.F1", sub("SUBJ","SUBJ1","SUBJ:AHI.F") ), "Estimate"],
-      b2.5 = confint(fit[[y]])[sub( "AHI.F", "AHI.F1", sub("SUBJ","SUBJ1","SUBJ:AHI.F") ), "2.5 %"],
-      b97.5 = confint(fit[[y]])[sub( "AHI.F", "AHI.F1", sub("SUBJ","SUBJ1","SUBJ:AHI.F") ), "97.5 %"]
-    )
+    mutate(Outcome = y, .before = 1)
   
 ) %>%
   
-  t() %>%
-  as.data.frame() %>%
-  mutate_if(is.list, as.numeric) %>%
-  rownames_to_column("structure")
+  do.call( rbind.data.frame, . )
 
 
 # PRE-PROCESSING  ----
@@ -314,7 +333,8 @@ ggsave(
 # fit a series of propensity-score weighted regressions
 fit_sc <- fit_reg(df.matched, subcort)
 dia_sc <- lm_dia(fit = fit_sc, outcomes = subcort) # run diagnostics
-res_sc <- lm_res(fit = fit_sc, outcomes = subcort) # extract ANOVAs and beta coefficients
+#res_sc <- lm_res(fit = fit_sc, outcomes = subcort) # extract ANOVAs and beta coefficients
+meff_sc <- meff(fit = fit_sc, outcomes = subcort) # marginal effects analysis
 
 # save the results
 write.table(x = dia_sc, file = here("tabs","subcort_diagnostics.csv"), sep = ",", row.names = F, quote = F) # save diagnostics
@@ -331,7 +351,8 @@ hippo <- names(d0)[ grepl( "rhx|lhx", names(d0) ) ]
 
 fit_hippo <- fit_reg(df.matched, hippo)
 dia_hippo <- lm_dia(fit = fit_hippo, outcomes = hippo) # run diagnostics
-res_hippo <- lm_res(fit = fit_hippo, outcomes = hippo) # extract ANOVAs and beta coefficients
+#res_hippo <- lm_res(fit = fit_hippo, outcomes = hippo) # extract ANOVAs and beta coefficients
+meff_hippo <- meff(fit = fit_hippo, outcomes = hippo) # marginal effects analysis
 
 # save the results
 write.table(x = dia_hippo, file = here("tabs","hippo_diagnostics.csv"), sep = ",", row.names = F, quote = F) # save diagnostics
