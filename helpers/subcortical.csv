@@ -1,0 +1,15 @@
+name,scaled,side,structure
+L_hippocampus,cL_hippocampus,Left,Hippocampus
+L_amygdala,cL_amygdala,Left,Amygdala
+Left_Thalamus,cLeft_Thalamus,Left,Thalamus
+Left_Caudate,cLeft_Caudate,Left,Caudate
+Left_Putamen,cLeft_Putamen,Left,Putamen
+Left_Pallidum,cLeft_Pallidum,Left,Pallidum
+Left_Accumbens_area,cLeft_Accumbens_area,Left,Accumbens
+R_hippocampus,cR_hippocampus,Right,Hippocampus
+R_amygdala,cR_amygdala,Right,Amygdala
+Right_Thalamus,cRight_Thalamus,Right,Thalamus
+Right_Caudate,cRight_Caudate,Right,Caudate
+Right_Putamen,cRight_Putamen,Right,Putamen
+Right_Pallidum,cRight_Pallidum,Right,Pallidum
+Right_Accumbens_area,cRight_Accumbens_area,Right,Accumbens
