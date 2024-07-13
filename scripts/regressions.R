@@ -45,36 +45,46 @@ zerolead <- function(x, d = 3) ifelse( x < .001, "< .001", sub("0.", ".", rprint
 msd <- function(x, d = 2) paste0( rprint( mean(x, na.rm = T), d ), " ± ", rprint( sd(x, na.rm = T), d ) )
 
 # fit regressions
-fit_reg <- function(d, outcomes, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = F) lapply(
+fit_reg <- function(d, outcomes, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = F) {
   
-  setNames(outcomes, outcomes),
-  function(y) {
+  lapply(
     
-    if (w == T) lm(formula = as.formula( paste0(y," ~ ",X) ), data = d, weights = weights)
-    else lm(formula = as.formula( paste0(y," ~ ",X) ), data = d, weights = NULL)
-
-  }
-)
+    setNames(outcomes, outcomes),
+    function(y) {
+      
+      if (w == T) lm(formula = as.formula( paste0(y," ~ ",X) ), data = d, weights = weights)
+      else lm(formula = as.formula( paste0(y," ~ ",X) ), data = d, weights = NULL)
+      
+    }
+  )
+  
+}
 
 # extract linear regressions model diagnostics
-lm_dia <- function(fit, outcomes) sapply(
+lm_dia <- function(fit) {
   
-  outcomes,
-  function(y)
-    c( p_breusch_pagan = c( check_heteroscedasticity(fit[[y]]) ),
-       n_cook = sum( check_outliers(fit[[y]]), na.rm = T ),
-       p_shapiro_wilk = c( check_normality(fit[[y]]) ),
-       p_durbin_watson = c( check_autocorrelation(fit[[y]]) )
-    )
-) %>%
+  sapply(
+    
+    names(fit),
+    function(y)
+      data.frame(
+        X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ),
+        p_breusch_pagan = c( check_heteroscedasticity(fit[[y]]) ),
+        n_cook = sum( check_outliers(fit[[y]]), na.rm = T ),
+        p_shapiro_wilk = c( check_normality(fit[[y]]) ),
+        p_durbin_watson = c( check_autocorrelation(fit[[y]]) )
+      )
+  ) %>%
+    
+    t() %>%
+    as.data.frame() %>%
+    mutate( across( everything(), ~ unlist(.x, use.names = F) ) ) %>%
+    mutate( heteroscedasticity = ifelse( p_breusch_pagan < .05, "!", ""), .after = p_breusch_pagan ) %>%
+    mutate( nonnormality = ifelse( p_shapiro_wilk < .05, "!", ""), .after = p_shapiro_wilk ) %>%
+    mutate( autocorrelation = ifelse( p_durbin_watson < .05, "!", ""), .after = p_durbin_watson ) %>%
+    rownames_to_column("y")
   
-  t() %>%
-  as.data.frame() %>%
-  mutate( heteroscedasticity = ifelse( p_breusch_pagan < .05, "!", ""), .after = p_breusch_pagan ) %>%
-  mutate( nonnormality = ifelse( p_shapiro_wilk < .05, "!", ""), .after = p_shapiro_wilk ) %>%
-  mutate( autocorrelation = ifelse( p_durbin_watson < .05, "!", ""), .after = p_durbin_watson ) %>%
-  #mutate( across( starts_with("p "), zerolead ) ) %>%
-  rownames_to_column("Outcome")
+}
 
 # Benjamini-Hochberg adjustment for 5% FDR
 bh_adjust <- function(p) {
@@ -95,70 +105,86 @@ bh_adjust <- function(p) {
 
 # extract coefficients for interactions and with them associated p-values
 # (equivalent to ANOVAs with type 3 sum of squares which are appropriate for interactions)
-lm_coeff <- function(fit, outcomes, term = "SUBJ1:AHI.F1") sapply(
+lm_coeff <- function(fit, term = "SUBJ1:AHI.F1") {
   
-  outcomes,
-  function(y)
+  sapply(
     
-    summary(fit[[y]])$coefficients[term, ] %>%
+    names(fit),
+    function(y)
+      
+      summary(fit[[y]])$coefficients[term, ] %>%
+      t() %>%
+      as.data.frame() %>%
+      rename("p value" = "Pr(>|t|)") %>%
+      mutate( `s value` = -log(`p value`, base = 2) ) %>%
+      cbind( t( confint(fit[[y]])[term, ] ) ) %>%
+      relocate(`2.5 %`, .before = `t value`) %>%
+      relocate(`97.5 %`, .before = `t value`) %>%
+      mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1)
+    
+  ) %>%
+    
     t() %>%
     as.data.frame() %>%
-    rename("p value" = "Pr(>|t|)") %>%
-    mutate( `s value` = -log(`p value`, base = 2) ) %>%
-    cbind( t( confint(fit[[y]])[term, ] ) ) %>%
-    relocate(`2.5 %`, .before = `t value`) %>%
-    relocate(`97.5 %`, .before = `t value`)
-
-) %>%
+    mutate(coefficient = term, .after = X) %>%
+    mutate_if(is.list, unlist) %>%
+    rownames_to_column("y") %>%
+    mutate(
+      sig_PCER = if_else(`p value` < .05, "*", ""),
+      sig_FDR = bh_adjust(`p value`),
+      sig_FWER = if_else(`p value` < .05/nrow(.), "*", "")
+    )
   
-  t() %>%
-  as.data.frame() %>%
-  mutate_if(is.list, as.numeric) %>%
-  rownames_to_column("Outcome") %>%
-  mutate(
-    sig_PCER = if_else(`p value` < .05, "*", ""),
-    sig_FDR = bh_adjust(`p value`),
-    sig_FWER = if_else(`p value` < .05/nrow(.), "*", "")
-  )
+}
 
 # extract average per diagnosis slopes and interaction estimates using marginaleffects
-meff <- function(fit, outcomes, type = "moderation", fit0) lapply(
+meff <- function(fit, fit0, type = "moderation") {
   
-  outcomes,
-  function(y) {
+  lapply(
     
-    if (type == "moderation") {
+    names(fit),
+    function(y) {
       
-      full_join(
-        avg_comparisons(fit[[y]], variables = "AHI.F", by = "SUBJ", wts = "weights", vcov = ~subclass),
-        avg_comparisons(fit[[y]], variables = "AHI.F", by = "SUBJ", wts = "weights", vcov = ~subclass, hypothesis = "revpairwise")
-      ) %>%
-        as.data.frame() %>%
-        select( -starts_with("predicted") ) %>%
-        mutate(Outcome = y, .before = 1)
+      if (type == "moderation") {
+        
+        full_join(
+          
+          avg_comparisons(fit[[y]], variables = "AHI.F", by = "SUBJ", wts = "weights", vcov = ~subclass) %>%
+            as.data.frame() %>%
+            mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 ),
+          
+          avg_comparisons(fit[[y]], variables = "AHI.F", by = "SUBJ", wts = "weights", vcov = ~subclass, hypothesis = "revpairwise") %>%
+            as.data.frame() %>%
+            mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 )
 
-    } else if (type == "full") {
-      
-      reduce(
-        list(
-          avg_comparisons(fit0[[y]], variables = "SUBJ", wts = "weights", vcov = ~subclass),
-          avg_comparisons(fit[[y]], variables = "AHI.F", wts = "weights", vcov = ~subclass),
-          avg_comparisons(fit[[y]], variables = "AHI.F", by = "SUBJ", wts = "weights", vcov = ~subclass),
-          avg_comparisons(fit[[y]], variables = "AHI.F", by = "SUBJ", wts = "weights", vcov = ~subclass, hypothesis = "revpairwise")
-        ),
-        full_join
-      ) %>%
-        as.data.frame() %>%
-        select( -starts_with("predicted") ) %>%
-        mutate(Outcome = y, .before = 1)
-      
-      
+        ) %>%
+          
+          as.data.frame() %>%
+          select( -starts_with("predicted") ) %>%
+          mutate(y = y, .before = 1)
+        
+      } else if (type == "full") {
+        
+        reduce(
+          list(
+            avg_comparisons(fit0[[y]], variables = "SUBJ", wts = "weights", vcov = ~subclass) %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit0[[y]] ) ) ), .before = 1 ),
+            avg_comparisons(fit[[y]], variables = "AHI.F", wts = "weights", vcov = ~subclass) %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 ),
+            avg_comparisons(fit[[y]], variables = "AHI.F", by = "SUBJ", wts = "weights", vcov = ~subclass) %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 ),
+            avg_comparisons(fit[[y]], variables = "AHI.F", by = "SUBJ", wts = "weights", vcov = ~subclass, hypothesis = "revpairwise") %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 )
+          ),
+          full_join
+        ) %>%
+          as.data.frame() %>%
+          select( -starts_with("predicted") ) %>%
+          mutate(y = y, .before = 1)
+        
+        
+      }
     }
-  }
-  
-) %>%
-  
-  do.call( rbind.data.frame, . )
+    
+  ) %>% do.call( rbind.data.frame, . )
+
+} 
 
 
 # PRE-PROCESSING  ----
@@ -288,22 +314,51 @@ lapply(
 
       get(i), {
         
-        # classical regressions with threshold-based decisions
+        ### ---- classical regressions with threshold-based decisions ----
+        
+        fit0 <- fit_reg(df, name, X = "SUBJ + AGE + GENDER + SBTIV", w = F) # main effect of disease
+        fit1 <- fit_reg(df, name, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = F) # main effect of OSA & disease/OSA interaction
+        
+       # extract and write main effects and interactions
         write.table(
           x = left_join(
-            fit_reg(df, name, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = F) %>% lm_coeff(name),
-            fit_reg(df, name, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = F) %>% lm_dia(name)
-          ),
+
+            rbind.data.frame( lm_coeff(fit0, term = "SUBJ1"), lm_coeff(fit1, term = "AHI.F1"), lm_coeff(fit1, term = "SUBJ1:AHI.F1") ),
+            rbind.data.frame( lm_dia(fit0), lm_dia(fit1) ),
+            by = c("y","X")
+
+          ) %>% mutate( sig_FDR = bh_adjust(`p value`) ), # re-calculate Benjamini-Hochberg adjusted significance statements
+  
           file = here( "tabs", paste0(i,"_classical_regressions.csv") ),
           sep = ",", row.names = F, quote = F
         )
         
+        
+        ### ---- weighted regressions with g-computation ----
+        
+        fit0 <- fit_reg(df.matched, name, X = "SUBJ + AGE + GENDER + SBTIV", w = T) # main effect of disease
+        fit1 <- fit_reg(df.matched, name, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = T) # main effect of OSA & disease/OSA interaction
+        
         # weighted regressions with g-computation
         write.table(
-          x = left_join(
-            fit_reg(df.matched, name, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = T) %>% meff(name),
-            fit_reg(df.matched, name, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = T) %>% lm_dia(name)
-          ),
+          x = meff(
+            
+            # g-computation results
+            fit = fit_reg(df.matched, subco$name, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = T),
+            fit0 = fit_reg(df.matched, subco$name, X = "SUBJ + AGE + GENDER + SBTIV", w = T),
+            type = "full"
+            
+            ) %>%
+            
+            # diagnostics
+            left_join(
+              rbind.data.frame(
+                lm_dia( fit_reg(df.matched, subco$name, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = T) ),
+                lm_dia( fit_reg(df.matched, subco$name, X = "SUBJ + AGE + GENDER + SBTIV", w = T) )
+              ),
+              by = c("y","X")
+            ),
+
           file = here( "tabs", paste0(i,"_weighted_regressions.csv") ),
           sep = ",", row.names = F, quote = F
         )
