@@ -319,8 +319,10 @@ lapply(
         fit0 <- fit_reg(df, name, X = "SUBJ + AGE + GENDER + SBTIV", w = F) # main effect of disease
         fit1 <- fit_reg(df, name, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = F) # main effect of OSA & disease/OSA interaction
         
-       # extract and write main effects and interactions
-        write.table(
+        # do full analysis for subcortical structures and interaction only for hippocampal substructures
+        if (i == "subco") write.table(
+          
+          # extract and write main effects and interactions for subcortical structures
           x = left_join(
 
             rbind.data.frame( lm_coeff(fit0, term = "SUBJ1"), lm_coeff(fit1, term = "AHI.F1"), lm_coeff(fit1, term = "SUBJ1:AHI.F1") ),
@@ -329,6 +331,13 @@ lapply(
 
           ) %>% mutate( sig_FDR = bh_adjust(`p value`) ), # re-calculate Benjamini-Hochberg adjusted significance statements
   
+          file = here( "tabs", paste0(i,"_classical_regressions.csv") ),
+          sep = ",", row.names = F, quote = F
+
+        ) else if (i == "hippo") write.table(
+          
+          # extract and write 'main effects and interactions only for hippocampal substructures
+          x = left_join( lm_coeff(fit1, term = "SUBJ1:AHI.F1") ,lm_dia(fit1), by = c("y","X") ),
           file = here( "tabs", paste0(i,"_classical_regressions.csv") ),
           sep = ",", row.names = F, quote = F
         )
@@ -341,23 +350,13 @@ lapply(
         
         # weighted regressions with g-computation
         write.table(
-          x = meff(
-            
-            # g-computation results
-            fit = fit_reg(df.matched, subco$name, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = T),
-            fit0 = fit_reg(df.matched, subco$name, X = "SUBJ + AGE + GENDER + SBTIV", w = T),
-            type = "full"
-            
-            ) %>%
-            
-            # diagnostics
-            left_join(
-              rbind.data.frame(
-                lm_dia( fit_reg(df.matched, subco$name, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = T) ),
-                lm_dia( fit_reg(df.matched, subco$name, X = "SUBJ + AGE + GENDER + SBTIV", w = T) )
-              ),
-              by = c("y","X")
-            ),
+          
+          # g-computation results
+          x = left_join(
+            meff( fit = fit1, fit0 = fit0, type = ifelse(i == "subco", "full", "moderation") ), # marginalised effects
+            rbind.data.frame( lm_dia(fit0), lm_dia(fit1) ), # diagnostics
+            by = c("y","X")
+          ),
 
           file = here( "tabs", paste0(i,"_weighted_regressions.csv") ),
           sep = ",", row.names = F, quote = F
@@ -370,7 +369,16 @@ lapply(
 )
 
 
-# RQ3: DOES OSA/HIPPOCAMPAL STRUCTURES VOLUME AFFECT COGNITION DIFFERENTLY IN PD PATIENTS COMPARED TO HEALTHY CONTROLS? ----
+# RQ3: DOES OSA AFFECT COGNITION DIFFERENTLY IN PD PATIENTS COMPARED TO HEALTHY CONTROLS? ----
+
+
+## ----- Extract predictors of interest ----
+
+#preds <- c(
+#  read.csv( here("tabs","subco_classical_regressions.csv"), sep = "," ) %>% filter(sig_FDR == "*") %>% select(y) %>% unlist(use.names = F) %>% unique(),
+#  read.csv( here("tabs","hippo_classical_regressions.csv"), sep = "," ) %>% filter(sig_FDR == "*") %>% select(y) %>% unlist(use.names = F) %>% unique()
+#)
+
 
 ## ---- Propensity scores matching ----
 
@@ -389,51 +397,108 @@ plot(m.out, type = "density", interactive = F)
 df.matched <- match.data(m.out)
 
 
+## ---- Linear regressions ----
+
+with(
+  
+  psych, {
+    
+    
+    ### ---- classical regressions with threshold-based decisions ----
+    
+    fit0 <- fit_reg(df, variable, X = "SUBJ * AGE + GENDER + EDU.Y", w = F) # main effect of disease
+    fit1 <- fit_reg(df, variable, X = "SUBJ * AHI.F * AGE + GENDER + EDU.Y", w = F) # main effect of OSA & disease/OSA interaction
+    
+    # summarise and save
+    write.table(
+      
+      # extract and write main effects and interactions for subcortical structures
+      x = left_join(
+        
+        rbind.data.frame( lm_coeff(fit0, term = "SUBJ1"), lm_coeff(fit1, term = "AHI.F1"), lm_coeff(fit1, term = "SUBJ1:AHI.F1") ),
+        rbind.data.frame( lm_dia(fit0), lm_dia(fit1) ),
+        by = c("y","X")
+        
+      ) %>% mutate( sig_FDR = bh_adjust(`p value`) ), # re-calculate Benjamini-Hochberg adjusted significance statements
+      
+      file = here("tabs","cognition_classical_regressions.csv"),
+      sep = ",", row.names = F, quote = F
+      
+    )
+    
+    
+    ### ---- weighted regressions with g-computation ----
+    
+    fit0 <- fit_reg(df.matched, variable, X = "SUBJ * AGE + GENDER + EDU.Y", w = T) # main effect of disease
+    fit1 <- fit_reg(df.matched, variable, X = "SUBJ * AHI.F * AGE + GENDER + EDU.Y", w = T) # main effect of OSA & disease/OSA interaction
+    
+    # weighted regressions with g-computation
+    write.table(
+      
+      # g-computation results
+      x = left_join(
+        meff( fit = fit1, fit0 = fit0, type = ifelse(i == "subco", "full", "moderation") ), # marginalised effects
+        rbind.data.frame( lm_dia(fit0), lm_dia(fit1) ), # diagnostics
+        by = c("y","X")
+      ),
+      
+      file = here("tabs","cognition_weighted_regressions.csv"),
+      sep = ",", row.names = F, quote = F
+    )
+    
+  }
+)
+
+
 ## ---- Interaction plots ----
 
-fig.int <- lapply(
-  
-  with( psych, setNames(variable,label) ),
-  function(i)
-    
-    d0 %>%
-    select( SUBJ, AHI.F, all_of(i), all_of( paste0("c",subco$name) ) ) %>%
-    pivot_longer( cols = starts_with("c"), names_to = "Structure", values_to = "Volume" ) %>%
-    
-    mutate( `Group: ` = case_when(SUBJ == "CON" ~ "HC", SUBJ == "PD" ~ "PD") ) %>%
-    mutate( AHI = factor( case_when(AHI.F == "L" ~ "low AHI", AHI.F == "H" ~ "high AHI"), levels = paste0( c("low","high"), " AHI"), ordered = T ) ) %>%
-    
-    mutate( Structure = sub("c","SUBJ:AHI.F:",Structure) ) %>%
-    mutate( Structure = sapply( 1:nrow(.), function(i) preds[ preds$predictor == Structure[i], "label2" ], USE.NAMES = F ) ) %>%
-    mutate( Structure = factor( Structure, levels = preds$label2[-c(1:2)], ordered = T ) ) %>%
-    
-    ggplot() +
-    aes(x = Volume, y = get(i), colour = AHI, fill = AHI) +
-    geom_point(size = 3) +
-    labs( x = bquote("Standardized volume"~("mm"^3) ), y = with( psych, label2[variable == i] ) ) +
-    geom_smooth(method = "lm", linewidth = 1.5, alpha = .25) +
-    ggh4x::facet_grid2( Structure ~ `Group: `, scales = "free_x", independent = "x" ) +
-    theme_bw( base_size = 16 ) +
-    theme(legend.position = "bottom")
-  
-)
+# prepare a big plot with all battery tests as outcomes and whole Hippocampi as predictors
+#d0 %>%
+#  
+#  select( SUBJ, AHI.F, all_of(psych$variable[-13]), all_of( paste0("c",preds[1:2]) ) ) %>%
+#  pivot_longer(cols = starts_with("c"), names_to = "Structure", values_to = "Volume") %>%
+#  pivot_longer(cols = all_of(psych$variable[-13]), names_to = "Test", values_to = "Score") %>%
+#  mutate(
+#    Diagnosis = if_else(SUBJ == "PD", "PD", "HC"),
+#    `OSA: ` = factor(
+#      if_else(AHI.F == "H", "AHI ≥ 15", "AHI < 15"),
+#      levels = c("AHI < 15","AHI ≥ 15"),
+#      ordered = T
+#    ),
+#    Structure = factor(
+#      sapply( 1:nrow(.), function(i) paste( subco[ subco$scaled == Structure[i], c("side","structure") ], collapse = " ") ),
+#      levels = paste0( c("Left","Right"), " Hippocampus" ),
+#      ordered = T
+#    ),
+#    Test = factor(
+#      sapply( 1:nrow(.), function(i) with( psych, label[variable == Test[i]] ) ),
+#      levels = psych$label,
+#      ordered = T
+#    )
+#  ) %>%
+#  
+#  ggplot() +
+#  aes(x = Volume, y = Score, colour = `OSA: `, fill = `OSA: `) +
+#  geom_point(size = 2) +
+#  labs( x = bquote("Standardized volume"~("mm"^3) ), y = "Score" ) +
+#  geom_smooth(method = "lm", linewidth = 1.5, alpha = .25) +
+#  ggh4x::facet_grid2( Test ~ Structure + Diagnosis, scales = T, independent = F ) +
+#  theme_bw(base_size = 10) +
+#  scale_fill_manual( values = c("#64CDCC","#F9A729") ) +
+#  scale_colour_manual( values = c("#64CDCC","#F9A729") ) +
+#  theme(legend.position = "bottom")
+#
+# save it
+#ggsave(
+#  plot = last_plot(),
+#  filename = here("figs","cognition_interaction_plots.jpg"),
+#  dpi = 300,
+#  width = 10,
+#  height = 12
+#)
 
 
-## weighted regresions for cognition ----
-
-left_join(
-  meff(
-    fit0 = fit_reg(df.matched, psych$variable, X = "SUBJ + AGE + EDU.Y + GENDER", w = T),
-    fit = fit_reg(df.matched, psych$variable, X = "SUBJ * AHI.F + AGE + EDU.Y + GENDER", w = T),
-    outcomes = psych$variable,
-    type = "full"
-  ),
-  fit_reg(df.matched, psych$variable, X = "SUBJ * AHI.F + AGE + EDU.Y + GENDER", w = F) %>% lm_dia(psych$variable)
-)
-
-
-
-
+## weighted regressions for cognition ----
 
 
 
