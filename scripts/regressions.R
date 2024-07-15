@@ -1,8 +1,8 @@
 # Computes regressions evaluating:
 #
-# RQ1) the moderating effect OSA on subcortical brain structures' volume in PD,
+# RQ1) the moderating effect OSA on subcortical brain structures' volume in PD
 # RQ2) the moderating effect OSA on hippocampal substructures' volume in PD
-# RQ3) the moderating effect of hippocampal volume on the moderating effect of OSA on cognitive performance in PD
+# RQ3) the moderating effect OSA on cognitive performance in PD
 #
 # All RQs are addressed from two point of views:
 #
@@ -23,6 +23,8 @@ library(tidyverse)
 library(MatchIt)
 library(marginaleffects) # for inference using g-computation
 library(performance)
+library(brms)
+library(priorsense)
 
 # prints TRUE and creates the folder if it was not present, prints NULL if the folder was already present
 sapply( c("figs","tabs"), function(i) if( !dir.exists(i) ) dir.create(i) )
@@ -61,18 +63,39 @@ fit_reg <- function(d, outcomes, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = 
 }
 
 # extract linear regressions model diagnostics
-lm_dia <- function(fit) {
+lm_dia <- function(fit, type = "frequentist") {
   
-  sapply(
+  if (type == "frequentist") {
+    
+    sapply(
+      
+      names(fit),
+      function(y)
+        data.frame(
+          X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ),
+          p_breusch_pagan = c( check_heteroscedasticity(fit[[y]]) ),
+          n_cook = sum( check_outliers(fit[[y]]), na.rm = T ),
+          p_shapiro_wilk = c( check_normality(fit[[y]]) ),
+          p_durbin_watson = c( check_autocorrelation(fit[[y]]) )
+        )
+    ) %>%
+      
+      t() %>%
+      as.data.frame() %>%
+      mutate( across( everything(), ~ unlist(.x, use.names = F) ) ) %>%
+      mutate( heteroscedasticity = ifelse( p_breusch_pagan < .05, "!", ""), .after = p_breusch_pagan ) %>%
+      mutate( nonnormality = ifelse( p_shapiro_wilk < .05, "!", ""), .after = p_shapiro_wilk ) %>%
+      mutate( autocorrelation = ifelse( p_durbin_watson < .05, "!", ""), .after = p_durbin_watson ) %>%
+      rownames_to_column("y")
+    
+  } else if (type == "Bayesian") sapply(
     
     names(fit),
     function(y)
       data.frame(
-        X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ),
         p_breusch_pagan = c( check_heteroscedasticity(fit[[y]]) ),
-        n_cook = sum( check_outliers(fit[[y]]), na.rm = T ),
-        p_shapiro_wilk = c( check_normality(fit[[y]]) ),
-        p_durbin_watson = c( check_autocorrelation(fit[[y]]) )
+        n_cook = sum( check_outliers(fit[[y]], method = "mahalanobis_robust"), na.rm = T ),
+        n_pareto = sum( check_outliers(fit[[y]], method = "pareto"), na.rm = T )
       )
   ) %>%
     
@@ -80,9 +103,7 @@ lm_dia <- function(fit) {
     as.data.frame() %>%
     mutate( across( everything(), ~ unlist(.x, use.names = F) ) ) %>%
     mutate( heteroscedasticity = ifelse( p_breusch_pagan < .05, "!", ""), .after = p_breusch_pagan ) %>%
-    mutate( nonnormality = ifelse( p_shapiro_wilk < .05, "!", ""), .after = p_shapiro_wilk ) %>%
-    mutate( autocorrelation = ifelse( p_durbin_watson < .05, "!", ""), .after = p_durbin_watson ) %>%
-    rownames_to_column("y")
+    rownames_to_column("x")
   
 }
 
@@ -238,7 +259,8 @@ m.out <- matchit(
   formula = PD ~ AGE + GENDER,
   data = df,
   method = "full",
-  distance = "glm"
+  distance = "glm",
+  link = "logit"
 )
 
 # matching looks to have worked well with these data and variables
@@ -316,8 +338,8 @@ lapply(
         
         ### ---- classical regressions with threshold-based decisions ----
         
-        fit0 <- fit_reg(df, name, X = "SUBJ + AGE + GENDER + SBTIV", w = F) # main effect of disease
-        fit1 <- fit_reg(df, name, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = F) # main effect of OSA & disease/OSA interaction
+        fit0 <- fit_reg(df, name, X = "SUBJ * AGE + GENDER + SBTIV", w = F) # main effect of disease
+        fit1 <- fit_reg(df, name, X = "SUBJ * AHI.F * AGE + GENDER + SBTIV", w = F) # main effect of OSA & disease/OSA interaction
         
         # do full analysis for subcortical structures and interaction only for hippocampal substructures
         if (i == "subco") write.table(
@@ -345,8 +367,8 @@ lapply(
         
         ### ---- weighted regressions with g-computation ----
         
-        fit0 <- fit_reg(df.matched, name, X = "SUBJ + AGE + GENDER + SBTIV", w = T) # main effect of disease
-        fit1 <- fit_reg(df.matched, name, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = T) # main effect of OSA & disease/OSA interaction
+        fit0 <- fit_reg(df.matched, name, X = "SUBJ * AGE + GENDER + SBTIV", w = T) # main effect of disease
+        fit1 <- fit_reg(df.matched, name, X = "SUBJ * AHI.F * AGE + GENDER + SBTIV", w = T) # main effect of OSA & disease/OSA interaction
         
         # weighted regressions with g-computation
         write.table(
@@ -371,13 +393,55 @@ lapply(
 
 # RQ3: DOES OSA AFFECT COGNITION DIFFERENTLY IN PD PATIENTS COMPARED TO HEALTHY CONTROLS? ----
 
+# extract non-MoCA variables
+psychvar <- with( psych, variable[variable != "moca"] )
+psychlab <- with( psych, label[variable != "moca"] )
 
-## ----- Extract predictors of interest ----
+## Interaction boxplots ----
 
-#preds <- c(
-#  read.csv( here("tabs","subco_classical_regressions.csv"), sep = "," ) %>% filter(sig_FDR == "*") %>% select(y) %>% unlist(use.names = F) %>% unique(),
-#  read.csv( here("tabs","hippo_classical_regressions.csv"), sep = "," ) %>% filter(sig_FDR == "*") %>% select(y) %>% unlist(use.names = F) %>% unique()
-#)
+d0 %>%
+  
+  select(SUBJ, AHI.F, all_of(psychvar) ) %>%
+  pivot_longer(
+    cols = all_of(psychvar),
+    values_to = "score",
+    names_to = "test"
+  ) %>%
+  mutate(
+    test = factor(
+      unlist(
+        sapply( 1:nrow(.), function(i) with( psych, label[variable == test[i]] ) ),
+        use.names = F
+      ),
+      levels = psychlab,
+      ordered = T
+    ),
+    Diagnosis = if_else(SUBJ == "PD", "PD", "HC"),
+    `OSA: ` = factor(
+      if_else(AHI.F == "H", "AHI ≥ 15", "AHI < 15"),
+      levels = c("AHI < 15","AHI ≥ 15"),
+      ordered = T
+    )
+  ) %>%
+  
+  ggplot() +
+  aes(y = score, x = Diagnosis) +
+  geom_boxplot( aes(fill = `OSA: `), width = .6, position = position_dodge(.7), linewidth = .75 ) +
+  geom_dotplot( aes(fill = `OSA: `), binaxis = "y", stackdir = "center", position = position_dodge(.7), dotsize = 1.5 ) +
+  labs( y = "Test score" ) +
+  facet_wrap( ~test, scales = "free", nrow = 5 ) +
+  scale_fill_manual( values = c("#64CDCC","#F9A729") ) +
+  theme_bw(base_size = 11) +
+  theme(legend.position = "bottom")
+
+# save it
+ggsave(
+  plot = last_plot(),
+  filename = here("figs","cognition_boxplots.jpg"),
+  dpi = 300,
+  width = 8,
+  height = 10
+)
 
 
 ## ---- Propensity scores matching ----
@@ -399,106 +463,177 @@ df.matched <- match.data(m.out)
 
 ## ---- Linear regressions ----
 
-with(
+### ---- classical regressions with threshold-based decisions ----
+
+write.table(
   
-  psych, {
+  # extract and write main effects and interactions for subcortical structures
+  x = left_join(
     
+    rbind.data.frame(
+      lm_coeff(fit_reg(df, psychvar, X = "SUBJ * AGE + GENDER + EDU.Y", w = F), term = "SUBJ1"), # main effect of disease
+      lm_coeff(fit_reg(df, psychvar, X = "SUBJ * AHI.F * AGE + GENDER + EDU.Y", w = F), term = "AHI.F1"), # main effect of OSA
+      lm_coeff(fit_reg(df, psychvar, X = "SUBJ * AHI.F * AGE + GENDER + EDU.Y", w = F), term = "SUBJ1:AHI.F1") # disease/OSA interaction
+    ),
+    rbind.data.frame(
+      lm_dia( fit_reg(df, psychvar, X = "SUBJ * AGE + GENDER + EDU.Y", w = F) ),
+      lm_dia( fit_reg(df, psychvar, X = "SUBJ * AHI.F * AGE + GENDER + EDU.Y", w = F) )
+    ),
+    by = c("y","X")
     
-    ### ---- classical regressions with threshold-based decisions ----
-    
-    fit0 <- fit_reg(df, variable, X = "SUBJ * AGE + GENDER + EDU.Y", w = F) # main effect of disease
-    fit1 <- fit_reg(df, variable, X = "SUBJ * AHI.F * AGE + GENDER + EDU.Y", w = F) # main effect of OSA & disease/OSA interaction
-    
-    # summarise and save
-    write.table(
-      
-      # extract and write main effects and interactions for subcortical structures
-      x = left_join(
-        
-        rbind.data.frame( lm_coeff(fit0, term = "SUBJ1"), lm_coeff(fit1, term = "AHI.F1"), lm_coeff(fit1, term = "SUBJ1:AHI.F1") ),
-        rbind.data.frame( lm_dia(fit0), lm_dia(fit1) ),
-        by = c("y","X")
-        
-      ) %>% mutate( sig_FDR = bh_adjust(`p value`) ), # re-calculate Benjamini-Hochberg adjusted significance statements
-      
-      file = here("tabs","cognition_classical_regressions.csv"),
-      sep = ",", row.names = F, quote = F
-      
-    )
-    
-    
-    ### ---- weighted regressions with g-computation ----
-    
-    fit0 <- fit_reg(df.matched, variable, X = "SUBJ * AGE + GENDER + EDU.Y", w = T) # main effect of disease
-    fit1 <- fit_reg(df.matched, variable, X = "SUBJ * AHI.F * AGE + GENDER + EDU.Y", w = T) # main effect of OSA & disease/OSA interaction
-    
-    # weighted regressions with g-computation
-    write.table(
-      
-      # g-computation results
-      x = left_join(
-        meff( fit = fit1, fit0 = fit0, type = ifelse(i == "subco", "full", "moderation") ), # marginalised effects
-        rbind.data.frame( lm_dia(fit0), lm_dia(fit1) ), # diagnostics
-        by = c("y","X")
-      ),
-      
-      file = here("tabs","cognition_weighted_regressions.csv"),
-      sep = ",", row.names = F, quote = F
-    )
-    
-  }
+  ) %>% mutate( sig_FDR = bh_adjust(`p value`) ), # re-calculate Benjamini-Hochberg adjusted significance statements
+  
+  file = here("tabs","cognition_classical_regressions.csv"),
+  sep = ",", row.names = F, quote = F
+  
 )
 
 
-## ---- Interaction plots ----
+### ---- weighted regressions with g-computation ----
 
-# prepare a big plot with all battery tests as outcomes and whole Hippocampi as predictors
-#d0 %>%
-#  
-#  select( SUBJ, AHI.F, all_of(psych$variable[-13]), all_of( paste0("c",preds[1:2]) ) ) %>%
-#  pivot_longer(cols = starts_with("c"), names_to = "Structure", values_to = "Volume") %>%
-#  pivot_longer(cols = all_of(psych$variable[-13]), names_to = "Test", values_to = "Score") %>%
-#  mutate(
-#    Diagnosis = if_else(SUBJ == "PD", "PD", "HC"),
-#    `OSA: ` = factor(
-#      if_else(AHI.F == "H", "AHI ≥ 15", "AHI < 15"),
-#      levels = c("AHI < 15","AHI ≥ 15"),
-#      ordered = T
-#    ),
-#    Structure = factor(
-#      sapply( 1:nrow(.), function(i) paste( subco[ subco$scaled == Structure[i], c("side","structure") ], collapse = " ") ),
-#      levels = paste0( c("Left","Right"), " Hippocampus" ),
-#      ordered = T
-#    ),
-#    Test = factor(
-#      sapply( 1:nrow(.), function(i) with( psych, label[variable == Test[i]] ) ),
-#      levels = psych$label,
-#      ordered = T
-#    )
-#  ) %>%
-#  
-#  ggplot() +
-#  aes(x = Volume, y = Score, colour = `OSA: `, fill = `OSA: `) +
-#  geom_point(size = 2) +
-#  labs( x = bquote("Standardized volume"~("mm"^3) ), y = "Score" ) +
-#  geom_smooth(method = "lm", linewidth = 1.5, alpha = .25) +
-#  ggh4x::facet_grid2( Test ~ Structure + Diagnosis, scales = T, independent = F ) +
-#  theme_bw(base_size = 10) +
-#  scale_fill_manual( values = c("#64CDCC","#F9A729") ) +
-#  scale_colour_manual( values = c("#64CDCC","#F9A729") ) +
-#  theme(legend.position = "bottom")
-#
-# save it
-#ggsave(
-#  plot = last_plot(),
-#  filename = here("figs","cognition_interaction_plots.jpg"),
-#  dpi = 300,
-#  width = 10,
-#  height = 12
-#)
+write.table(
+
+  # g-computation results
+  x = left_join(
+    
+    # marginalised effects
+    meff(
+      fit = fit_reg(df.matched, psychvar, X = "SUBJ * AHI.F * AGE + GENDER + EDU.Y", w = T), # main effect of disease
+      fit0 = fit_reg(df.matched, psychvar, X = "SUBJ * AGE + GENDER + EDU.Y", w = T), # main effect of OSA & disease/OSA interaction
+      type = "full"
+    ),
+    
+    # diagnostics
+    rbind.data.frame(
+      lm_dia( fit_reg(df.matched, psychvar, X = "SUBJ * AGE + GENDER + EDU.Y", w = T) ),
+      lm_dia( fit_reg(df.matched, psychvar, X = "SUBJ * AHI.F * AGE + GENDER + EDU.Y", w = T) )
+    ),
+
+    by = c("y","X")
+
+  ),
+  
+  file = here("tabs","cognition_weighted_regressions.csv"),
+  sep = ",", row.names = F, quote = F
+  
+)
 
 
-## weighted regressions for cognition ----
+### ---- Bayesian regression with heteroscedasticity ----
+
+# prepare formulas
+formulas <- list(
+  
+  # formulas for base models (assuming homoscedasticity)
+  varequal = lapply(
+    setNames( c("tmt_b","gpt_phk","gpt_lhk"), c("tmt_b","gpt_phk","gpt_lhk") ),
+    function(i)
+      list(
+        SUBJ = paste0(i," ~ SUBJ * AGE + GENDER + EDU.Y") %>% as.formula() %>% bf(),
+        AHI = paste0(i," ~ SUBJ * AHI.F * AGE + GENDER + EDU.Y") %>% as.formula() %>% bf()
+      )
+  ),
+  
+  # formulas for variance adjusted models (allowing heteroscedasticity)
+  # listing them one by one because as.formula do not want work with commas
+  heteroscedastic = list(
+    
+    tmt_b = list(
+      SUBJ = bf(tmt_b ~ SUBJ * AGE + GENDER + EDU.Y, sigma ~ SUBJ),
+      AHI = bf(tmt_b ~ SUBJ * AHI.F * AGE + GENDER + EDU.Y, sigma ~ SUBJ)
+    ),
+    
+    gpt_phk = list(
+      SUBJ = bf(gpt_phk ~ SUBJ * AGE + GENDER + EDU.Y, sigma ~ SUBJ * AGE ),
+      AHI = bf(gpt_phk ~ SUBJ * AHI.F * AGE + GENDER + EDU.Y, sigma ~ SUBJ * AGE )
+    ),
+    
+    gpt_lhk = list(
+      SUBJ = bf(gpt_lhk ~ SUBJ * AGE + GENDER + EDU.Y, sigma ~ SUBJ + AGE ),
+      AHI = bf(gpt_lhk ~ SUBJ * AHI.F * AGE + GENDER + EDU.Y, sigma ~ SUBJ + AGE )
+    )
+  )
+  
+)
+
+# re-fit the models for TMT-B and GPT via brms with differing variance for the groups
+priors <- list(
+
+  # priors for base models (assuming homoscedasticity)
+  varequal = c(
+    prior(normal(0, 1), class = Intercept),
+    prior(normal(0, 1), class = b),
+    prior(exponential(1), class = sigma)
+  ),
+  
+  # priors for variance adjusted models (allowing heteroscedasticity)
+  heteroscedastic = c(
+     prior(normal(0, 1), class = Intercept),
+     prior(normal(0, 1), class = b),
+     prior(normal(0, 1), class = Intercept, dpar = sigma),
+     prior(normal(0, 1), class = b, dpar = sigma)
+   )
+  
+)
+
+# fit the models
+fit <- lapply(
+  
+  setNames( names(formulas), names(formulas) ),
+  function(i)
+    
+    lapply(
+      
+      setNames( names(formulas[[i]]), names(formulas[[i]]) ),
+      function(j)
+        
+        lapply(
+          
+          setNames( names(formulas[[i]][[j]]), names(formulas[[i]][[j]]) ),
+          function(k)
+            
+            brm( formula = formulas[[i]][[j]][[k]],
+                 data = df,
+                 family = gaussian(link = "identity"),
+                 prior = priors[[i]],
+                 seed = 87542
+                 )
+          
+        )
+    )
+)
+
+# do some posterior checks including re-checking heteroscedasticity via the Breusch-Pagan test
+lapply(
+  
+  names(fit),
+  function(k)
+    
+    lapply(
+      
+      names(fit[[k]]),
+      function(y) {
+        
+        # print prior sensitivity diagnostics
+        print( powerscale_sensitivity(fit[[k]][[y]][[1]]) )
+        print( powerscale_sensitivity(fit[[k]][[y]][[2]]) )
+        
+        # return classical diagnostics
+        return(
+          lm_dia(fit[[k]][[y]], type = "Bayesian") %>%
+            mutate(y = y, .before = 1) %>%
+            mutate(type = k, .after = x) %>%
+            mutate( p_breusch_pagan = zerolead(p_breusch_pagan) )
+        )
+        
+      }
+      
+    ) %>% do.call( rbind.data.frame, . )
+  
+) %>% do.call( rbind.data.frame, . )
+
+
+
 
 
 
