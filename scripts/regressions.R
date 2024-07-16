@@ -25,6 +25,8 @@ library(marginaleffects) # for inference using g-computation
 library(performance)
 library(brms)
 library(priorsense)
+library(patchwork)
+library(psych)
 
 # prints TRUE and creates the folder if it was not present, prints NULL if the folder was already present
 sapply( c("figs","tabs"), function(i) if( !dir.exists(i) ) dir.create(i) )
@@ -75,8 +77,7 @@ lm_dia <- function(fit, type = "frequentist") {
           X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ),
           p_breusch_pagan = c( check_heteroscedasticity(fit[[y]]) ),
           n_cook = sum( check_outliers(fit[[y]]), na.rm = T ),
-          p_shapiro_wilk = c( check_normality(fit[[y]]) ),
-          p_durbin_watson = c( check_autocorrelation(fit[[y]]) )
+          p_shapiro_wilk = c( check_normality(fit[[y]]) )
         )
     ) %>%
       
@@ -85,7 +86,6 @@ lm_dia <- function(fit, type = "frequentist") {
       mutate( across( everything(), ~ unlist(.x, use.names = F) ) ) %>%
       mutate( heteroscedasticity = ifelse( p_breusch_pagan < .05, "!", ""), .after = p_breusch_pagan ) %>%
       mutate( nonnormality = ifelse( p_shapiro_wilk < .05, "!", ""), .after = p_shapiro_wilk ) %>%
-      mutate( autocorrelation = ifelse( p_durbin_watson < .05, "!", ""), .after = p_durbin_watson ) %>%
       rownames_to_column("y")
     
   } else if (type == "Bayesian") sapply(
@@ -93,6 +93,8 @@ lm_dia <- function(fit, type = "frequentist") {
     names(fit),
     function(y)
       data.frame(
+        X = sub( ".* ~ ", "", as.character( formula(fit[[y]]) )[1] ),
+        sigma = if_else( grepl( "sigma", formula(fit[[y]])[2] ), sub( ")", "", sub( ".* ~ ", "", as.character( formula(fit[[y]]) )[2] ) ), "1" ),
         p_breusch_pagan = c( check_heteroscedasticity(fit[[y]]) ),
         n_cook = sum( check_outliers(fit[[y]], method = "mahalanobis_robust"), na.rm = T ),
         n_pareto = sum( check_outliers(fit[[y]], method = "pareto"), na.rm = T )
@@ -103,7 +105,7 @@ lm_dia <- function(fit, type = "frequentist") {
     as.data.frame() %>%
     mutate( across( everything(), ~ unlist(.x, use.names = F) ) ) %>%
     mutate( heteroscedasticity = ifelse( p_breusch_pagan < .05, "!", ""), .after = p_breusch_pagan ) %>%
-    rownames_to_column("x")
+    `rownames<-`( 1:nrow(.) )
   
 }
 
@@ -124,37 +126,62 @@ bh_adjust <- function(p) {
   return( if_else(p < bh_thres, "*", "") )
 }
 
-# extract coefficients for interactions and with them associated p-values
+# extract coefficients for interactions and with them associated p-values (frequentist)
 # (equivalent to ANOVAs with type 3 sum of squares which are appropriate for interactions)
-lm_coeff <- function(fit, term = "SUBJ1:AHI.F1") {
+# or posterior summaries (Bayesian)
+lm_coeff <- function(fit, term = "SUBJ1:AHI.F1", type = "frequentist") {
   
-  sapply(
+  if (type == "frequentist") {
+    
+    sapply(
+      
+      names(fit),
+      function(y)
+        
+        summary(fit[[y]])$coefficients[term, ] %>%
+        t() %>%
+        as.data.frame() %>%
+        rename("p value" = "Pr(>|t|)") %>%
+        mutate( `s value` = -log(`p value`, base = 2) ) %>%
+        cbind( t( confint(fit[[y]])[term, ] ) ) %>%
+        relocate(`2.5 %`, .before = `t value`) %>%
+        relocate(`97.5 %`, .before = `t value`) %>%
+        mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1)
+      
+    ) %>%
+      
+      t() %>%
+      as.data.frame() %>%
+      mutate(coefficient = term, .after = X) %>%
+      mutate_if(is.list, unlist) %>%
+      rownames_to_column("y") %>%
+      mutate(
+        sig_PCER = if_else(`p value` < .05, "*", ""),
+        sig_FDR = bh_adjust(`p value`),
+        sig_FWER = if_else(`p value` < .05/nrow(.), "*", "")
+      )
+    
+  } else if (type == "Bayesian") sapply(
     
     names(fit),
     function(y)
       
-      summary(fit[[y]])$coefficients[term, ] %>%
+      fixef(fit[[y]])[term, ] %>%
       t() %>%
       as.data.frame() %>%
-      rename("p value" = "Pr(>|t|)") %>%
-      mutate( `s value` = -log(`p value`, base = 2) ) %>%
-      cbind( t( confint(fit[[y]])[term, ] ) ) %>%
-      relocate(`2.5 %`, .before = `t value`) %>%
-      relocate(`97.5 %`, .before = `t value`) %>%
-      mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1)
+      mutate(
+        X = sub( ".* ~ ", "", as.character( formula(fit[[y]]) )[1] ),
+        sigma = if_else( grepl( "sigma", formula(fit[[y]])[2] ), sub( ")", "", sub( ".* ~ ", "", as.character( formula(fit[[y]]) )[2] ) ), "1" ),
+        .before = 1            
+      )
     
   ) %>%
     
     t() %>%
     as.data.frame() %>%
-    mutate(coefficient = term, .after = X) %>%
+    mutate(coefficient = term, .after = sigma) %>%
     mutate_if(is.list, unlist) %>%
-    rownames_to_column("y") %>%
-    mutate(
-      sig_PCER = if_else(`p value` < .05, "*", ""),
-      sig_FDR = bh_adjust(`p value`),
-      sig_FWER = if_else(`p value` < .05/nrow(.), "*", "")
-    )
+    rownames_to_column("y")
   
 }
 
@@ -603,37 +630,158 @@ fit <- lapply(
     )
 )
 
-# do some posterior checks including re-checking heteroscedasticity via the Breusch-Pagan test
+
+#### ----- posterior predictive checks ----
+
 lapply(
   
-  names(fit),
-  function(k)
+  c("dens_overlay_grouped","stat_grouped"),
+  function(k) {
     
+    ppc <- lapply(
+      
+      setNames( names(fit), names(fit) ),
+      function(i)
+        
+        lapply(
+          
+          setNames( names(fit[[i]]), names(fit[[i]]) ),
+          function(y)
+            
+            lapply(
+              
+              setNames( names(fit[[i]][[y]]), names(fit[[i]][[y]]) ),
+              function(x) {
+                
+                # set distinct colour palletes for different types of models
+                if (i == "varequal") bayesplot::color_scheme_set( scheme = "red" )
+                else if (i == "heteroscedastic") bayesplot::color_scheme_set( scheme = "blue" )
+                
+                set.seed(87542) # seed for reproducibility
+                
+                # plotting proper
+                pp_check( fit[[i]][[y]][[x]], ndraws = 100, type = k, group = "SUBJ", stat = "sd", bins = 15 ) +
+                  theme_bw(base_size = 14) +
+                  labs(
+                    x = paste0( with(psych, label[variable == y]), " (-log seconds)" ),
+                    title = case_when(
+                      i == "varequal" ~ paste0( as.character(formulas[[i]][[y]][[x]])[1], ", sigma ~ 1" ),
+                      i == "heteroscedastic" ~ paste0(
+                        as.character(formulas[[i]][[y]][[x]])[1] , ", ",
+                        sub( ")", "", sub( "list(sigma = ", "", as.character(formulas[[i]][[y]][[x]])[2], fixed = T ) )
+                      )
+                    )
+                  ) +
+                  theme(
+                    legend.position = "none",
+                    panel.grid = element_blank(),
+                    plot.title = element_text(hjust = 0.5, size = 10)
+                  )
+                
+              }
+            )
+        )
+    )
+    
+    # put them to a single plot
+    with(
+      ppc,
+      ( varequal$tmt_b$SUBJ | heteroscedastic$tmt_b$SUBJ | varequal$tmt_b$AHI | heteroscedastic$tmt_b$AHI ) /
+        ( varequal$gpt_phk$SUBJ | heteroscedastic$gpt_phk$SUBJ | varequal$gpt_phk$AHI | heteroscedastic$gpt_phk$AHI ) /
+        ( varequal$gpt_lhk$SUBJ | heteroscedastic$gpt_lhk$SUBJ | varequal$gpt_lhk$AHI | heteroscedastic$gpt_lhk$AHI )
+    )
+    
+    # save it
+    ggsave(
+      plot = last_plot(),
+      filename = here( "figs", paste0("cognition_ppc_", sub("_.*","",k), ".jpg") ),
+      dpi = 300,
+      width = 20,
+      height = 15
+    )
+    
+  }
+)
+
+
+#### ----- coefficients extraction ----
+
+write.table(
+  
+  x = left_join(
+    
+    # extract model coefficients
     lapply(
       
-      names(fit[[k]]),
-      function(y) {
+      names(fit),
+      function(i) {
         
-        # print prior sensitivity diagnostics
-        print( powerscale_sensitivity(fit[[k]][[y]][[1]]) )
-        print( powerscale_sensitivity(fit[[k]][[y]][[2]]) )
+        fit0 <- list(tmt_b = fit[[i]]$tmt_b$SUBJ, gpt_phk = fit[[i]]$gpt_phk$SUBJ, gpt_lhk = fit[[i]]$gpt_lhk$SUBJ)
+        fit1 <- list(tmt_b = fit[[i]]$tmt_b$AHI, gpt_phk = fit[[i]]$gpt_phk$AHI, gpt_lhk = fit[[i]]$gpt_lhk$AHI)
         
-        # return classical diagnostics
-        return(
-          lm_dia(fit[[k]][[y]], type = "Bayesian") %>%
-            mutate(y = y, .before = 1) %>%
-            mutate(type = k, .after = x) %>%
-            mutate( p_breusch_pagan = zerolead(p_breusch_pagan) )
+        do.call(
+          
+          rbind.data.frame,
+          list(
+            lm_coeff(fit0, term = "SUBJ1", type = "Bayesian"),
+            lm_coeff(fit1, term = "AHI.F1", type = "Bayesian"),
+            lm_coeff(fit1, term = "SUBJ1:AHI.F1", type = "Bayesian")
+          )
+          
         )
-        
       }
+    ) %>% do.call( rbind.data.frame, . ),
+    
+    # extract diagnostics
+    lapply(
       
-    ) %>% do.call( rbind.data.frame, . )
+      names(fit),
+      function(k)
+        
+        lapply(
+          
+          names(fit[[k]]),
+          function(y) {
+            
+            # print prior sensitivity diagnostics
+            print( powerscale_sensitivity(fit[[k]][[y]][[1]]) )
+            print( powerscale_sensitivity(fit[[k]][[y]][[2]]) )
+            
+            # return classical diagnostics
+            return(
+              lm_dia(fit[[k]][[y]], type = "Bayesian") %>%
+                mutate(y = y, .before = 1) %>%
+                mutate( p_breusch_pagan = zerolead(p_breusch_pagan) )
+            )
+            
+          }
+          
+        ) %>% do.call( rbind.data.frame, . )
+      
+    ) %>% do.call( rbind.data.frame, . ),
+    
+    # join by outcome, predictor, and variance terms
+    by = c("y","X","sigma")
+    
+  ),
   
-) %>% do.call( rbind.data.frame, . )
+  file = here("tabs","cognition_bayesian_regressions.csv"),
+  sep = ",", row.names = F, quote = F
+  
+)
 
 
+## MoCA ----
 
+# do it akin to this way
+glm( cbind(moca, moca_max-moca) ~ SUBJ * AGE + EDU.Y + GENDER, data = df.matched, weights = weights, family = binomial(link = "logit") ) %>%
+  avg_predictions(
+    variables = "SUBJ",
+    type = "response",
+    vcov = ~subclass,
+    transform = function(x) 30 * x,
+    hypothesis = "revpairwise"
+  )
 
 
 
@@ -641,10 +789,10 @@ lapply(
 
 # table for the classical analysis
 fit_reg(df, subco$name, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = F) %>%
-  lm_coeff(subco$name) %>%
+  lm_coeff() %>%
   mutate(
-    Side = unlist( sapply( 1:nrow(.), function(i) with(subco, side[name == Outcome[i]] ) ) , use.names = F),
-    Structure = unlist( sapply( 1:nrow(.), function(i) with(subco, structure[name == Outcome[i]] ) ) , use.names = F),
+    Side = unlist( sapply( 1:nrow(.), function(i) with(subco, side[name == y[i]] ) ) , use.names = F),
+    Structure = unlist( sapply( 1:nrow(.), function(i) with(subco, structure[name == y[i]] ) ) , use.names = F),
     Estimate = rprint(Estimate),
     SE = rprint(`Std. Error`),
     `95% CI` = paste0("[", rprint(`2.5 %`),", ",rprint(`97.5 %`), "]"),
@@ -671,12 +819,12 @@ fit_reg(df, subco$name, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = F) %>%
 
 # table for the g-comparisons
 fit_reg(df.matched, subco$name, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = T) %>%
-  meff(subco$name) %>%
+  meff() %>%
   mutate(
     Contrast = "OSA- vs OSA+",
     Group = case_when(term == "PD - CON" ~ "PD vs HC", SUBJ == "PD" ~ "PD", SUBJ == "CON" ~ "HC"),
-    Side = unlist( sapply( 1:nrow(.), function(i) with(subco, side[name == Outcome[i]] ) ) , use.names = F),
-    Structure = unlist( sapply( 1:nrow(.), function(i) with(subco, structure[name == Outcome[i]] ) ) , use.names = F),
+    Side = unlist( sapply( 1:nrow(.), function(i) with(subco, side[name == y[i]] ) ) , use.names = F),
+    Structure = unlist( sapply( 1:nrow(.), function(i) with(subco, structure[name == y[i]] ) ) , use.names = F),
     Estimate = rprint(estimate),
     SE = rprint(std.error),
     `95% CI` = paste0("[", rprint(conf.low),", ",rprint(conf.high), "]"),
