@@ -10,7 +10,7 @@ library(tidyverse)
 if( !dir.exists("_data") ) dir.create("_data")
 
 # all tests in the battery
-psych <- read.csv("psychs.csv", sep = ";")
+psych <- read.csv( here("helpers","psychs.csv"), sep = ";")
 
 
 # MDS-UPDRS ----
@@ -52,9 +52,10 @@ d1 <- left_join(
   ) %>%
   left_join(
     
-    read.csv( here("_raw","20221120_redcap_export.csv"), sep = "," ) %>%
+    read.csv( here("_raw","RBDBIOPDCON_DATA_2024-07-17_1146.csv"), sep = "," ) %>%
       mutate( Study.ID = sub("-","",study_id) ) %>%
-      select( Study.ID, all_of(psych$variable) ),
+      mutate( event = sub("_arm_2|_arm_3", "", redcap_event_name) ) %>%
+      select( Study.ID, event, all_of(psych$variable) ),
     by = "Study.ID"
     
   ) %>%
