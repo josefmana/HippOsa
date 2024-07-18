@@ -27,7 +27,6 @@ library(performance)
 library(brms)
 library(priorsense)
 library(patchwork)
-library(psych)
 
 # prints TRUE and creates the folder if it was not present, prints NULL if the folder was already present
 sapply( c("figs","tabs"), function(i) if( !dir.exists(i) ) dir.create(i) )
@@ -40,14 +39,9 @@ hippo <- read.csv( here("helpers","hippocampus.csv"), sep = ",") # hippocampal s
 
 # UTILS ----
 
-# print rounded number
-rprint <- function(x, d = 2) sprintf( paste0("%.",d,"f"), round(x, d) )
-
-# delete leading zero
-zerolead <- function(x, d = 3) ifelse( x < .001, "< .001", sub("0.", ".", rprint(x, 3), fixed = T) )
-
-# calculate and print mean and SD
-msd <- function(x, d = 2) paste0( rprint( mean(x, na.rm = T), d ), " ± ", rprint( sd(x, na.rm = T), d ) )
+rprint <- function(x, d = 2) sprintf( paste0("%.",d,"f"), round(x, d) ) # print rounded number
+zerolead <- function(x, d = 3) ifelse( x < .001, "< .001", sub("0.", ".", rprint(x, 3), fixed = T) ) # delete leading zero
+msd <- function(x, d = 2) paste0( rprint( mean(x, na.rm = T), d ), " ± ", rprint( sd(x, na.rm = T), d ) ) # calculate and print mean and SD
 
 # fit regressions
 fit_reg <- function(d, outcomes, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = F) {
@@ -902,6 +896,11 @@ ggsave(
 )
 
 
+# Show descriptively the profile PD-OSA+ vs PD-OSA- in MDS-UPDRS III
+# Some type of forest plot with beta estimates
+# BMI?
+
+# dbs_combSTIM: re-test the same patients
 
 
 ## MoCA ----
