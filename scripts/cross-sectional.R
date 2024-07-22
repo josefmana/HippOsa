@@ -28,8 +28,10 @@ library(brms)
 library(priorsense)
 library(patchwork)
 
+theme_set( theme_bw() )
+
 # prints TRUE and creates the folder if it was not present, prints NULL if the folder was already present
-sapply( c("figs","tabs"), function(i) if( !dir.exists(i) ) dir.create(i) )
+sapply( c("figures","tables"), function(i) if( !dir.exists(i) ) dir.create(i) )
 
 # read helper files with variable names
 psych <- read.csv( here("helpers","psychs.csv"), sep = ";") # psychologic variables
@@ -341,7 +343,7 @@ d0 %>%
 # save it
 ggsave(
   plot = last_plot(),
-  filename = here("figs","subcort_boxplots.jpg"),
+  filename = here("figures","subcort_boxplots.jpg"),
   dpi = 300,
   width = 6,
   height = 10
@@ -377,14 +379,14 @@ lapply(
 
           ) %>% mutate( sig_FDR = bh_adjust(`p value`) ), # re-calculate Benjamini-Hochberg adjusted significance statements
   
-          file = here( "tabs", paste0(i,"_classical_regressions.csv") ),
+          file = here( "tables", paste0(i,"_classical_regressions.csv") ),
           sep = ",", row.names = F, quote = F
 
         ) else if (i == "hippo") write.table(
           
           # extract and write 'main effects and interactions only for hippocampal substructures
           x = left_join( lm_coeff(fit1, term = "SUBJ1:AHI.F1") ,lm_dia(fit1), by = c("y","X") ),
-          file = here( "tabs", paste0(i,"_classical_regressions.csv") ),
+          file = here( "tables", paste0(i,"_classical_regressions.csv") ),
           sep = ",", row.names = F, quote = F
         )
         
@@ -404,7 +406,7 @@ lapply(
             by = c("y","X")
           ),
 
-          file = here( "tabs", paste0(i,"_weighted_regressions.csv") ),
+          file = here( "tables", paste0(i,"_weighted_regressions.csv") ),
           sep = ",", row.names = F, quote = F
         )
         
@@ -461,7 +463,7 @@ d0 %>%
 # save it
 ggsave(
   plot = last_plot(),
-  filename = here("figs","cognition_boxplots.jpg"),
+  filename = here("figures","cognition_boxplots.jpg"),
   dpi = 300,
   width = 8,
   height = 10
@@ -507,7 +509,7 @@ write.table(
     
   ) %>% mutate( sig_FDR = bh_adjust(`p value`) ), # re-calculate Benjamini-Hochberg adjusted significance statements
   
-  file = here("tabs","cognition_classical_regressions.csv"),
+  file = here("tables","cognition_classical_regressions.csv"),
   sep = ",", row.names = F, quote = F
   
 )
@@ -537,7 +539,7 @@ write.table(
 
   ),
   
-  file = here("tabs","cognition_weighted_regressions.csv"),
+  file = here("tables","cognition_weighted_regressions.csv"),
   sep = ",", row.names = F, quote = F
   
 )
@@ -691,7 +693,7 @@ lapply(
     # save it
     ggsave(
       plot = last_plot(),
-      filename = here( "figs", paste0("cognition_ppc_", sub("_.*","",k), ".jpg") ),
+      filename = here( "figures", paste0("cognition_ppc_", sub("_.*","",k), ".jpg") ),
       dpi = 300,
       width = 20,
       height = 15
@@ -762,7 +764,7 @@ write.table(
     
   ),
   
-  file = here("tabs","cognition_bayesian_regressions.csv"),
+  file = here("tables","cognition_bayesian_regressions.csv"),
   sep = ",", row.names = F, quote = F
   
 )
@@ -829,6 +831,7 @@ fit1 <- lapply(
 # compare models' expected predictive performance
 with( fit1, loo(`1PL_fixed`, `1PL_flex`) ) # selecting the fixed model for further description of patterns in the data (based on the model)
 
+
 #### ---- plots ----
 
 # some posterior predictive checks
@@ -842,7 +845,7 @@ lapply(
     
     ggsave(
       plot = last_plot(),
-      filename = here( "figs", paste0("motor_ppc_",tolower(k),".jpg") ),
+      filename = here( "figures", paste0("motor_ppc_",tolower(k),".jpg") ),
       dpi = 300,
       width = ifelse(k == "ITEM", 10, 12),
       height = ifelse(k == "ITEM", 10, 12)
@@ -889,7 +892,7 @@ as_draws_df(fit1$`1PL_fixed`) %>%
 # save it
 ggsave(
   plot = last_plot(),
-  filename = here("figs","motor_item_parameters.jpg"),
+  filename = here("figures","motor_item_parameters.jpg"),
   dpi = 300,
   width = 6,
   height = 11

@@ -8,6 +8,7 @@ library(ggdag)
 library(patchwork)
 
 theme_set( theme_dag() ) # set-up theme for plotting
+if( !dir.exists("figures") ) dir.create("figures") # prepare folder for figures
 
 # set-up coordinates for nodes
 coords <- data.frame(
@@ -55,4 +56,4 @@ dag2 <- dagify(
 ( ggdag(dag1) | ggdag(dag2)  ) +  plot_annotation(tag_levels = "A")
 
 # save it
-ggsave( here("figs","hippo_dags.jpg"), dpi = 300, width = 12, height = 7 )
+ggsave( here("figures","hippo_dags.jpg"), dpi = 300, width = 12, height = 7 )

@@ -15,13 +15,49 @@ library(tidyverse)
 library(brms)
 library(priorsense)
 library(bayestestR)
+library(bayesplot)
 
-sapply( c("figs","tabs"), function(i) if( !dir.exists(i) ) dir.create(i) ) # prepare folders
+theme_set( theme_bw() )
+color_scheme_set("viridisA") # colour scheme
+
+sapply( c("figures","tables"), function(i) if( !dir.exists(i) ) dir.create(i) ) # prepare folders
 psych <- read.csv( here("helpers","psychs.csv"), sep = ";") # read helper files with variable names
 
 
 # UTILS ----
 
+# plot posterior predictive stats for a set of models
+plot_ppc_stat <- function(fit, data, labs = psych, sleep = 3, stat = "sd") lapply(
+  
+  names(fit),
+  function(i) {
+    
+    y <- paste0(i,"_sc")
+    d <- subset( data, complete.cases( get(y) ) ) %>% mutate(x = paste0(pd,"_",event) )
+    
+    print(
+      pp_check(
+        object = d[ , y],
+        yrep = posterior_predict(fit[[i]], newdata = d),
+        fun = ppc_stat_grouped,
+        stat = stat,
+        group = d$x
+      ) +
+        labs(
+          title = with(labs , label[variable == i] ),
+          subtitle = paste0("Observed (thick line) vs predicted (histogram) ",stat," for pre/post assessment of PD/HC participants")
+        ) +
+        theme(
+          legend.position = "none",
+          plot.title = element_text(hjust = .5, face = "bold"),
+          plot.subtitle = element_text(hjust = .5)
+        )
+    )
+    
+    Sys.sleep(sleep)
+    
+  }
+)
 
 # PRE-PROCESSING  ----
 
@@ -75,11 +111,12 @@ table(d1$id) %>%
 # save it
 ggsave(
   plot = last_plot(),
-  filename = here("figs","cognition_longitudinal_assessments.jpg"),
+  filename = here("figures","cognition_longitudinal_assessments.jpg"),
   dpi = 300,
   width = 8,
   height = 8
 )
+
 
 ## ---- longitudinal GLM of MoCA ----
 
@@ -115,7 +152,7 @@ pp_check(fit1, type = "bars_grouped", ndraws = NULL, group = "osa" )
 # extract and save posterior summaries
 describe_posterior(fit1, test = "p_direction") %>%
   as.data.frame() %>%
-  write.csv(file = here("tabs","cognition_longitudinal.csv"), sep = ",", row.names = F, quote = F)
+  write.table(file = here("tables","cognition_longitudinal.csv"), sep = ",", row.names = F, quote = F)
 
 
 # RQ5: DO OSA+/- PATIENTS SHOW DISTINCTIVE RE-TEST COGNITIVE PROFILE COMPARED TO HEALTHY CONTROLS? ----
@@ -171,28 +208,63 @@ prior2 <- c(
 fit2 <- lapply(
   
   with( psych, setNames( paste0(psych$variable[-13],"_sc"), psych$variable[-13]) ),
-  function(y)
+  function(y) {
+    
+    data <- d2 %>% mutate( y = get(y) )
     
     brm(
-      formula = bf( paste0(y," ~ 1 + event * pd * osa + (1 | id)") ),
-      data = d2,
+      formula = bf( y ~ 1 + event * pd * osa + (1 | id) ),
+      data = data,
       prior = prior2,
       family = gaussian(link = "identity"),
       seed = 87542
     )
+    
+  }
+)
+
+# do some posterior predictive checks
+plot_ppc_stat(fit2, d2, stat = "mean")
+plot_ppc_stat(fit2, d2, stat = "median")
+plot_ppc_stat(fit2, d2, stat = "sd")
+
+# save the results
+write.table(
+  
+  x = do.call(
+    
+    rbind.data.frame,
+    lapply(
+      
+      names(fit2),
+      function(y)
+        
+        left_join(
+          
+          describe_posterior(fit2[[y]], test = "p_direction") %>%
+            as.data.frame() %>%
+            mutate(Outcome = y, .before = 1),
+          
+          powerscale_sensitivity(fit2$avlt_1_5) %>%
+            as.data.frame() %>%
+            rename(
+              "Parameter" = "variable",
+              "prior_sensitivity" = "prior",
+              "likelihood_sensitivity" = "likelihood",
+              "powerscale_diagnosis" = "diagnosis"
+            ),
+          
+          by = "Parameter"
+          
+        )
+      
+    )
+  ),
+  
+  file = here("tables","cognition_retest.csv"),
+  sep = ",",
+  row.names = F,
+  quote = F
   
 )
 
-do.call(
-  rbind.data.frame,
-  lapply(
-    
-    names(fit2),
-    function(y)
-      
-      describe_posterior(fit2[[y]], test = "p_direction") %>%
-      as.data.frame() %>%
-      mutate(Outcome = y, .before = 1)
-    
-  )
-)
