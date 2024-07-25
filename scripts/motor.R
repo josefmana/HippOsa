@@ -1,23 +1,42 @@
 # Computes regressions evaluating:
 #
-# RQ6) the simple effect OSA on MDS-UPDRS III scores in de novo PD
+# RQ3) the simple effect of OSA on MDS-UPDRS III scores in de novo PD
 #
 # addressed via a multivariate regression of MDS-UPDRS III subscores on OSA status, age and sex
 # after evaluating MDS-UPDRS III scales internal consistency,
 # and a Bayesian IRT model of the full MDS.UPDRS III scale for item-level inference.
 
 
+rm( list = ls() ) # clear environment
+options( mc.cores = parallel::detectCores() ) # use all parallel CPU cores
+
+# load packages
+library(here)
+library(tidyverse)
+library(psych)
+library(performance)
 library(brms)
 library(priorsense)
 
+sapply( c("figures","tables"), function(i) if( !dir.exists(i) ) dir.create(i) ) # prepare folders
+source( here("scripts","utils.R") ) # in-house functions
 
+# scoring
+scoring <-
+  read.csv(here("helpers","mds_updrs_iii_scoring.csv"), sep = ";") %>%
+  filter(scale != "updrs_iii") # working with MDS-UPDRS III only
+  
+
+
+# PRE-PROCESSING  ----
 
 # read the data
 d1 <-
   read.csv( here("_data","mds_updrs_iii.csv"), sep = "," ) %>%
   left_join(
     read.csv( here("_data","primary_dataset.csv"), sep = "," ) %>%
-      filter(event == "enrollment")
+      filter(event == "enrollment") %>%
+      select(Study.ID, AGE, GENDER, EDU.Y, BMI)
   ) %>%
   mutate(
     AHI.F = as.factor(AHI.F),
@@ -28,6 +47,31 @@ d1 <-
   ) %>%
   within( . , contrasts(AHI.F) <- -contr.sum(2)/2 )
 
+# prepare a wide data set as well
+d2 <- d1 %>%
+  
+  pivot_wider(
+    names_from = ITEM,
+    values_from = response_num,
+    id_cols = c(Study.ID, AHI.F, AGE, EDU.Y, SEX, BMI)
+  ) %>%
+  
+  mutate(
+    !!!setNames( rep(NA, length(scoring$scale) ), scoring$scale),
+    across(
+      .cols = all_of(scoring$scale),
+      .fns = ~ rowSums( across( all_of( paste0( "3.", strsplit(with( scoring, item[scoring == cur_column()] ), ",")[[1]] ) ) ) )
+    )
+  )
+
+
+# total score, right, left, axial
+
+
+# INTERNAL CONSISTENCY ----
+
+
+# LINEAR REGRESSIONS ----
 
 
 # ITEM RESPONSE MODELLING ----

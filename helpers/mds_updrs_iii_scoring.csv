@@ -1,0 +1,7 @@
+scale;item;rev;min;max
+mds_updrs_iii;1,2,3a,3b,3c,3d,3e,4a,4b,5a,5b,6a,6b,7a,7b,8a,8b,9,10,11,12,13,14,15a,15b,16a,16b,17a,17b,17c,17d,17e,18;NA;0;4
+updrs_iii;1,2,3a,3b,3c,3d,3e,4a,4b,5a,5b,6a,6b,8a,8b,9,10,12,13,14,15a,15b,17a,17b,17c,17d,17e;NA;0;4
+rigidity;3a,3b,3c,3d,3e,;NA;0;4
+bradykinesia;4a,4b,5a,5b,6a,6b,7a,7b,8a,8b;NA;0;4
+axial;1,2,9,10,11,12,13,14;NA;0;4
+tremor;15a,15b,16a,16b,17a,17b,18;NA;0;4
