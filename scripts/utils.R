@@ -195,4 +195,153 @@ meff <- function(fit, fit0, type = "moderation") {
     
   ) %>% do.call( rbind.data.frame, . )
   
-} 
+}
+
+# plot posterior predictive stats for a set of models
+plot_ppc_stat <- function(fit, data, labs = psych, sleep = 3, stat = "sd") lapply(
+  
+  names(fit),
+  function(i) {
+    
+    y <- paste0(i,"_sc")
+    d <- subset( data, complete.cases( get(y) ) ) %>% mutate(x = paste0(pd,"_",event) )
+    
+    print(
+      pp_check(
+        object = d[ , y],
+        yrep = posterior_predict(fit[[i]], newdata = d),
+        fun = ppc_stat_grouped,
+        stat = stat,
+        group = d$x
+      ) +
+        labs(
+          title = with(labs , label[variable == i] ),
+          subtitle = paste0("Observed (thick line) vs predicted (histogram) ",stat," for pre/post assessment of PD/HC participants")
+        ) +
+        theme(
+          legend.position = "none",
+          plot.title = element_text(hjust = .5, face = "bold"),
+          plot.subtitle = element_text(hjust = .5)
+        )
+    )
+    
+    Sys.sleep(sleep)
+    
+  }
+)
+
+# extract contrasts for marginalised effects calculation
+contr_extr <- function(vars, data) lapply( setNames(vars,vars), function(x) contrasts( data[[x]] ) )
+
+# extract contrasts of interest
+contr_comp <- function(fit, var, contr, resc = NULL, negexp = F, summarise = T) {
+  
+  # extract posterior draws
+  drws <-
+    as_draws_df(fit) %>%
+    select( starts_with("b") ) # keep group-level effects only
+  
+  # rescale if asked for
+  if ( !is.null(resc) ) drws <- drws %>%
+      
+      mutate(
+        b_Intercept = b_Intercept * resc[var,"SD"] + resc[var,"M"],
+        across( -b_Intercept, ~ .x * resc[var,"SD"] )
+      )
+  
+  # compute marginal posteriors
+  drws <- drws %>%
+    
+    mutate(
+      
+      # event
+      
+      # group
+      
+      # osa
+      
+      # event:group
+      `enrollment HC` =
+        b_Intercept +
+        contr$event["enrollment", ] * b_event1 +
+        contr$group["HC", ] * b_group1 +
+        contr$event["enrollment", ] * contr$group["HC", ] * `b_event1:group1`,
+      
+      `retest HC` =
+        b_Intercept +
+        contr$event["retest", ] * b_event1 +
+        contr$group["HC", ] * b_group1 +
+        contr$event["retest", ] * contr$group["HC", ] * `b_event1:group1`,
+      
+      `enrollment PD` =
+        b_Intercept +
+        contr$event["enrollment", ] * b_event1 +
+        contr$group["PD", ] * b_group1 +
+        contr$event["enrollment", ] * contr$group["PD", ] * `b_event1:group1`,
+      
+      `retest PD` =
+        b_Intercept +
+        contr$event["retest", ] * b_event1 +
+        contr$group["PD", ] * b_group1 +
+        contr$event["retest", ] * contr$group["PD", ] * `b_event1:group1`,
+      
+      # event:osa
+      `enrollment OSA-` =
+        b_Intercept +
+        contr$event["enrollment", ] * b_event1 +
+        contr$osa["-", ] * b_osa1 +
+        contr$event["enrollment", ] * contr$osa["-", ] * `b_event1:osa1`,
+      
+      `retest OSA-` =
+        b_Intercept +
+        contr$event["retest", ] * b_event1 +
+        contr$osa["-", ] * b_osa1 +
+        contr$event["retest", ] * contr$osa["-", ] * `b_event1:osa1`,
+      
+      `enrollment OSA+` =
+        b_Intercept +
+        contr$event["enrollment", ] * b_event1 +
+        contr$osa["+", ] * b_osa1 +
+        contr$event["enrollment", ] * contr$osa["+", ] * `b_event1:osa1`,
+      
+      `retest OSA+` =
+        b_Intercept +
+        contr$event["retest", ] * b_event1 +
+        contr$osa["+", ] * b_osa1 +
+        contr$event["retest", ] * contr$osa["+", ] * `b_event1:osa1`,
+      
+      # group:osa
+      
+      # event:group:osa
+      
+      
+    ) %>%
+    
+    # keep only the newly computed columns
+    # they are the only one with spces
+    select( contains(" ") )
+  
+  # if reaction times need to exponentiated, do it
+  if (negexp == T) drws <- drws %>%
+    
+    mutate( across( everything(), ~ -exp(.x) ) )
+  
+  # calculate differences
+  drws <- drws %>%
+    
+    mutate(
+      
+      # event:group
+      `retest - enrollment HC` = `retest HC` - `enrollment HC`,
+      `retest - enrollment PD` = `retest PD` - `enrollment PD`,
+      `decline PD - decline HC` = `retest - enrollment PD` - `retest - enrollment HC`
+      
+      # 
+      
+    )
+  
+  # if to be summarised, do it
+  if (summarise == T) drws <- drws %>% describe_posterior(test = "p_direction")
+  
+}
+

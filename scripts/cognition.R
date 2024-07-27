@@ -1,9 +1,8 @@
 # Computes regressions evaluating:
 #
-# RQ4) the moderating effect OSA on longitudinal general cognitive performance in de novo PD
-# RQ5) the moderating effect OSA on re-test cognitive profile in de novo PD
+# RQ3) the moderating effect OSA on cognitive performance in de novo PD
 #
-# Both RQs are addressed via Bayesian GLMMs
+# The RQ is addressed via a series Bayesian test/re-test GLMMs with marginal means postprocessing of posteriors
 
 
 rm( list = ls() ) # clear environment
@@ -24,66 +23,45 @@ color_scheme_set("viridisA") # colour scheme
 sapply( c("figures","tables"), function(i) if( !dir.exists(i) ) dir.create(i) ) # prepare folders
 psych <- read.csv( here("helpers","psychs.csv"), sep = ";") # read helper files with variable names
 
+# in-house functions
+source( here("scripts","utils.R") )
 
-# UTILS ----
-
-# plot posterior predictive stats for a set of models
-plot_ppc_stat <- function(fit, data, labs = psych, sleep = 3, stat = "sd") lapply(
-  
-  names(fit),
-  function(i) {
-    
-    y <- paste0(i,"_sc")
-    d <- subset( data, complete.cases( get(y) ) ) %>% mutate(x = paste0(pd,"_",event) )
-    
-    print(
-      pp_check(
-        object = d[ , y],
-        yrep = posterior_predict(fit[[i]], newdata = d),
-        fun = ppc_stat_grouped,
-        stat = stat,
-        group = d$x
-      ) +
-        labs(
-          title = with(labs , label[variable == i] ),
-          subtitle = paste0("Observed (thick line) vs predicted (histogram) ",stat," for pre/post assessment of PD/HC participants")
-        ) +
-        theme(
-          legend.position = "none",
-          plot.title = element_text(hjust = .5, face = "bold"),
-          plot.subtitle = element_text(hjust = .5)
-        )
-    )
-    
-    Sys.sleep(sleep)
-    
-  }
-)
 
 # PRE-PROCESSING  ----
 
 # read the data
 d0 <-
+  
+  # read and pre-process variables
   read.csv( here("_data","primary_dataset.csv"), sep = "," ) %>%
   mutate(
     id = Study.ID,
     sex = factor( case_when(GENDER == 1 ~ "male", GENDER == 0 ~ "female") ),
-    pd = factor( case_when(SUBJ == "PD" ~ 1, SUBJ == "CON" ~ 0) ),
-    osa = factor( case_when(AHI.F == "H" ~ 1, AHI.F == "L" ~ 0) ),
+    group = factor( case_when(SUBJ == "PD" ~ "PD", SUBJ == "CON" ~ "HC") ),
+    osa = factor( case_when(AHI.F == "H" ~ "+", AHI.F == "L" ~ "-") ),
+    event = factor(
+      case_when(event == "enrollment" ~ "enrollment", event == "followup_4" ~ "retest"),
+      levels = c("enrollment", "retest"),
+      ordered = T
+    ),
     age = AGE,
     edu = EDU.Y
-  )
+  ) %>%
+  
+  # set-up contrasts to avoid multicollinearity in interaction terms
+  within( . , {
+    contrasts(sex) <- contr.equalprior_pairs(2)
+    contrasts(group) <- contr.equalprior_pairs(2)
+    contrasts(osa) <- contr.equalprior_pairs(2)
+    contrasts(event) <- contr.equalprior_pairs(2)
+  } )
 
-# prepare MoCA data set for RQ4
-d1 <- d0 %>%
-  select(id, event, sex, pd, osa, age, edu, moca) %>%
-  filter( complete.cases(moca) ) %>%
-  mutate( event_num = as.numeric( as.factor(event) ) - 1 )
 
-# prepare battery data set for RQ5
-d2 <- d0 %>%
-  select(id, event, sex, pd, osa, age, edu, all_of(psych$variable[-13]) ) %>%
-  filter( event %in% c("enrollment","followup_4") ) %>%
+# prepare data set for analyses
+df <- d0 %>%
+  
+  select(id, event, sex, group, osa, event, age, edu, all_of(psych$variable[-13]) ) %>%
+  filter( complete.cases(event) ) %>%
   mutate(
     across(
       all_of( subset(psych, domain %in% c("Attention","Executive function","Processing speed") )$variable ),
@@ -91,83 +69,8 @@ d2 <- d0 %>%
     )
   )
 
-# check for missing values
-sapply(
 
-  1:nrow(df),
-  function(i)
-    if( sum( is.na(df[i, ]) ) > 0 ) df[i, ]
-
-) %>%
-  do.call( rbind.data.frame , . ) %>%
-  mutate_if( is.numeric, round, 2 )
-
-
-# RQ4: DO OSA+/- PATIENTS SHOW DISTINCTIVE LONGITUDINAL COGNITIVE TRAJECTORY COMPARED TO HEALTHY CONTROLS? ----
-
-# plot number of assessments per participant
-table(d1$id) %>%
-  
-  as.data.frame() %>%
-  mutate( group =  if_else( grepl("CON",Var1), "HC", "PD" ) ) %>%
-  
-  ggplot() +
-  aes(y = reorder(Var1, Freq), x = Freq, fill = group) +
-  geom_bar( stat = "identity" ) +
-  labs(y = NULL, x = "Number of assessments") +
-  scale_x_continuous( breaks = seq(0,9,1), labels = seq(0,9,1) ) +
-  facet_wrap( ~group, scales = "free_y" ) +
-  theme_bw() +
-  theme(legend.position = "none")
-
-# save it
-ggsave(
-  plot = last_plot(),
-  filename = here("figures","cognition_longitudinal_assessments.jpg"),
-  dpi = 300,
-  width = 8,
-  height = 8
-)
-
-
-## ---- longitudinal GLM of MoCA ----
-
-# set-up priors
-prior1 <- c(
-  
-  prior("normal(0, 3)", class = "Intercept"),
-  prior("normal(0, 3)", class = "b"),
-  prior("normal(0, 3)", class = "sd", group = "id"),
-  prior("lkj(2)", class = "cor")
-  
-)
-
-# fit it
-fit1 <- brm(
-  
-  moca | trials(30) ~ 1 + (1 + event_num | id) + event_num * pd * osa,
-  data = d1,
-  prior = prior1,
-  family = binomial()
-  
-)
-
-# check for prior sensitivity
-powerscale_sensitivity(fit1)
-
-# do some posterior checks
-pp_check(fit1, type = "stat_2d", ndraws = NULL )
-pp_check(fit1, type = "bars_grouped", ndraws = NULL, group = "event_num" )
-pp_check(fit1, type = "bars_grouped", ndraws = NULL, group = "pd" )
-pp_check(fit1, type = "bars_grouped", ndraws = NULL, group = "osa" )
-
-# extract and save posterior summaries
-describe_posterior(fit1, test = "p_direction") %>%
-  as.data.frame() %>%
-  write.table(file = here("tables","cognition_longitudinal.csv"), sep = ",", row.names = F, quote = F)
-
-
-# RQ5: DO OSA+/- PATIENTS SHOW DISTINCTIVE RE-TEST COGNITIVE PROFILE COMPARED TO HEALTHY CONTROLS? ----
+# DO OSA+/- PATIENTS SHOW DISTINCTIVE RE-TEST COGNITIVE PROFILE COMPARED TO HEALTHY CONTROLS? ----
 
 # amount of data points available
 lapply(
@@ -175,10 +78,10 @@ lapply(
   setNames( psych$variable[-13], psych$variable[-13] ),
   function(y)
     
-    table( subset(d2, complete.cases( get(y) ) )$id) %>%
+    table( subset(df, complete.cases( get(y) ) )$id) %>%
     as.data.frame() %>%
-    mutate( Group =  if_else( grepl("CON",Var1), 0, 1 ) ) %>%
-    mutate( OSA = unlist( sapply( 1:nrow(.), function(j) with(d1, unique( osa[id == Var1[j]] ) ) ) ) ) %>%
+    mutate( Group =  unlist( sapply( 1:nrow(.), function(j) with(df, unique( grp[id == Var1[j]] ) ) ) ) ) %>%
+    mutate( OSA = unlist( sapply( 1:nrow(.), function(j) with(df, unique( osa[id == Var1[j]] ) ) ) ) ) %>%
     select(OSA, Group, Freq) %>%
     table()
   
@@ -191,12 +94,12 @@ scl <- sapply(
   c(psych$variable[-13], "age", "edu"),
   function(i)
     
-    with(subset(d2, event == "enrollment"), c(M = mean( get(i), na.rm = T ), SD = sd( get(i), na.rm = T ) ) )
+    with(subset(df, event == "enrollment"), c(M = mean( get(i), na.rm = T ), SD = sd( get(i), na.rm = T ) ) )
   
 ) %>% t()
 
 # scale the variables
-d2 <- d2 %>%
+df <- df %>%
   
   mutate(
     across(
@@ -207,7 +110,7 @@ d2 <- d2 %>%
   )
 
 # set-up priors
-prior2 <- c(
+prior1 <- c(
   
   prior("normal(0, 1)", class = "Intercept"),
   prior("normal(0, 1)", class = "b"),
@@ -217,17 +120,17 @@ prior2 <- c(
 )
 
 # fit the models
-fit2 <- lapply(
+fit1 <- lapply(
   
   with( psych, setNames( paste0(psych$variable[-13],"_sc"), psych$variable[-13]) ),
   function(y) {
     
-    data <- d2 %>% mutate( y = get(y) )
+    data <- df %>% mutate( y = get(y) )
     
     brm(
-      formula = bf( y ~ 1 + event * pd * osa + (1 | id) ),
+      formula = bf( y ~ 1 + event * grp * osa + (1 | id) ),
       data = data,
-      prior = prior2,
+      prior = prior1,
       family = gaussian(link = "identity"),
       seed = 87542
     )
@@ -236,9 +139,9 @@ fit2 <- lapply(
 )
 
 # do some posterior predictive checks
-plot_ppc_stat(fit2, d2, stat = "mean")
-plot_ppc_stat(fit2, d2, stat = "median")
-plot_ppc_stat(fit2, d2, stat = "sd")
+plot_ppc_stat(fit1, d2, stat = "mean")
+plot_ppc_stat(fit1, d2, stat = "median")
+plot_ppc_stat(fit1, d2, stat = "sd")
 
 # save the results
 write.table(
@@ -257,7 +160,7 @@ write.table(
             as.data.frame() %>%
             mutate(Outcome = y, .before = 1),
           
-          powerscale_sensitivity(fit2$avlt_1_5) %>%
+          powerscale_sensitivity(fit2[[y]]) %>%
             as.data.frame() %>%
             rename(
               "Parameter" = "variable",

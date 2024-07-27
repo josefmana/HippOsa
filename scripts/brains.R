@@ -70,20 +70,29 @@ df <- d0 %>%
 
 ## ---- Propensity score matching -----
 
-# fit a logistic regression based propensity score model based on sex and age
-m.out <- matchit(
-  formula = PD ~ AGE + GENDER + BMI,
-  data = df,
-  method = "full",
-  distance = "glm",
-  link = "logit"
+# fit a logistic regression based propensity score model based on sex and age for base models
+# and age, gender and BMI for 'robustness check'
+m.out <- lapply(
+  
+  setNames( c("AGE + GENDER","AGE + GENDER + BMI"), c("AGE + GENDER","AGE + GENDER + BMI") ),
+  function(x)
+    
+    matchit(
+      formula = as.formula( paste0("PD ~ ",x) ),
+      data = df,
+      method = "full",
+      distance = "glm",
+      link = "logit"
+    )
+  
 )
 
 # matching looks to have worked well with these data and variables
-plot(m.out, type = "density", interactive = F)
+plot(m.out$`AGE + GENDER`, type = "density", interactive = F)
+plot(m.out$`AGE + GENDER + BMI`, type = "density", interactive = F)
 
 # prepare a data set with propensity scores weights
-df.matched <- match.data(m.out)
+mdata <- lapply( setNames( names(m.out), names(m.out) ), function(x) match.data(m.out[[x]]) )
 
 
 # INTERACTION BOXPLOTS ----
@@ -139,68 +148,85 @@ ggsave(
 
 # LINEAR REGRESSIONS ----
 
-# loop through structures and types of analysis
+# set-up formulas
+preds <- data.frame(
+  
+  model = c("base", "interaction","bmi"),
+  predictor0 = c("SUBJ + AGE + GENDER + SBTIV", "SUBJ * AGE + GENDER + SBTIV","SUBJ * (AGE + BMI) + GENDER + SBTIV"),
+  predictor1 = c("SUBJ * AHI.F + AGE + GENDER + SBTIV", "SUBJ * AHI.F * AGE + GENDER + SBTIV","SUBJ * AHI.F * (AGE + BMI) + GENDER + SBTIV"),
+  weight = c("AGE + GENDER","AGE + GENDER","AGE + GENDER + BMI")
+  
+)
+
+# loop through types of regressions (base vs interaction), structures and types of analysis
 lapply(
   
-  c("subco","hippo"),
-  function(i) {
-
-    with(
-
-      get(i), {
+  1:nrow(preds),
+  function(r)
+    
+    lapply(
+      
+      c("subco","hippo"),
+      function(i) {
         
-        ### ---- classical regressions with threshold-based decisions ----
-        
-        fit0 <- fit_reg(df, name, X = "SUBJ * (AGE + BMI) + GENDER + SBTIV", w = F) # main effect of disease
-        fit1 <- fit_reg(df, name, X = "SUBJ * AHI.F * (AGE + BMI) + GENDER + SBTIV", w = F) # main effect of OSA & disease/OSA interaction
-        
-        # do full analysis for subcortical structures and interaction only for hippocampal substructures
-        if (i == "subco") write.table(
+        with(
           
-          # extract and write main effects and interactions for subcortical structures
-          x = left_join(
-
-            rbind.data.frame( lm_coeff(fit0, term = "SUBJ1"), lm_coeff(fit1, term = "AHI.F1"), lm_coeff(fit1, term = "SUBJ1:AHI.F1") ),
-            rbind.data.frame( lm_dia(fit0), lm_dia(fit1) ),
-            by = c("y","X")
-
-          ) %>% mutate( sig_FDR = bh_adjust(`p value`) ), # re-calculate Benjamini-Hochberg adjusted significance statements
-  
-          file = here( "tables", paste0(i,"_classical_regressions.csv") ),
-          sep = ",", row.names = F, quote = F
-
-        ) else if (i == "hippo") write.table(
-          
-          # extract and write 'main effects and interactions only for hippocampal substructures
-          x = left_join( lm_coeff(fit1, term = "SUBJ1:AHI.F1") ,lm_dia(fit1), by = c("y","X") ),
-          file = here( "tables", paste0(i,"_classical_regressions.csv") ),
-          sep = ",", row.names = F, quote = F
-        )
-        
-        
-        ### ---- weighted regressions with g-computation ----
-        
-        fit0 <- fit_reg(df.matched, name, X = "SUBJ * (AGE + BMI) + GENDER + SBTIV", w = T) # main effect of disease
-        fit1 <- fit_reg(df.matched, name, X = "SUBJ * AHI.F * (AGE + BMI) + GENDER + SBTIV", w = T) # main effect of OSA & disease/OSA interaction
-        
-        # weighted regressions with g-computation
-        write.table(
-          
-          # g-computation results
-          x = left_join(
-            meff( fit = fit1, fit0 = fit0, type = ifelse(i == "subco", "full", "moderation") ), # marginalised effects
-            rbind.data.frame( lm_dia(fit0), lm_dia(fit1) ), # diagnostics
-            by = c("y","X")
-          ),
-
-          file = here( "tables", paste0(i,"_weighted_regressions.csv") ),
-          sep = ",", row.names = F, quote = F
+          get(i), {
+            
+            ### ---- classical regressions with threshold-based decisions ----
+            
+            fit0 <- fit_reg(df, name, X = preds[r, "predictor0"], w = F) # main effect of disease
+            fit1 <- fit_reg(df, name, X = preds[r, "predictor1"], w = F) # main effect of OSA & disease/OSA interaction
+            
+            # do full analysis for subcortical structures and interaction only for hippocampal substructures
+            if (i == "subco") write.table(
+              
+              # extract and write main effects and interactions for subcortical structures
+              x = left_join(
+                
+                rbind.data.frame( lm_coeff(fit0, term = "SUBJ1"), lm_coeff(fit1, term = "AHI.F1"), lm_coeff(fit1, term = "SUBJ1:AHI.F1") ),
+                rbind.data.frame( lm_dia(fit0), lm_dia(fit1) ),
+                by = c("y","X")
+                
+              ) %>% mutate( sig_FDR = bh_adjust(`p value`) ), # re-calculate Benjamini-Hochberg adjusted significance statements
+              
+              file = here( "tables", paste0(i, "_", preds[r, "model"], "_classical_regressions.csv") ),
+              sep = ",", row.names = F, quote = F
+              
+            ) else if (i == "hippo") write.table(
+              
+              # extract and write 'main effects and interactions only for hippocampal substructures
+              x = left_join( lm_coeff(fit1, term = "SUBJ1:AHI.F1") ,lm_dia(fit1), by = c("y","X") ),
+              file = here( "tables", paste0(i, "_" , preds[r, "model"], "_classical_regressions.csv") ),
+              sep = ",", row.names = F, quote = F
+            )
+            
+            
+            ### ---- weighted regressions with g-computation ----
+            
+            fit0 <- fit_reg(mdata[[preds[r,"weight"]]], name, X = preds[r, "predictor0"], w = T) # main effect of disease
+            fit1 <- fit_reg(mdata[[preds[r,"weight"]]], name, X = preds[r, "predictor1"], w = T) # main effect of OSA & disease/OSA interaction
+            
+            # weighted regressions with g-computation
+            write.table(
+              
+              # g-computation results
+              x = left_join(
+                meff( fit = fit1, fit0 = fit0, type = ifelse(i == "subco", "full", "moderation") ), # marginalised effects
+                rbind.data.frame( lm_dia(fit0), lm_dia(fit1) ), # diagnostics
+                by = c("y","X")
+              ),
+              
+              file = here( "tables", paste0(i, "_", preds[r, "model"], "_weighted_regressions.csv") ),
+              sep = ",", row.names = F, quote = F
+            )
+            
+          }
         )
         
       }
     )
-    
-  }
+  
 )
 
 
@@ -208,7 +234,7 @@ lapply(
 
 ## ---- subcortical structures regressions ----
 
-read.csv(here("tables","subco_weighted_regressions.csv"), sep = ",") %>%
+read.csv(here("tables","subco_base_weighted_regressions.csv"), sep = ",") %>%
   
   # prepare variables
   mutate(
@@ -273,7 +299,7 @@ ggsave(
 ## ---- hippocampal structures regressions ----
 
 # extract structures ordered by s-value (from largest to smallest) on the PD * OSA interaction
-ord <- read.csv(here("tables","hippo_weighted_regressions.csv"), sep = ",") %>%
+ord <- read.csv(here("tables","hippo_base_weighted_regressions.csv"), sep = ",") %>%
   filter(term == "PD - CON") %>%
   arrange( desc(s.value) ) %>%
   mutate( y = sub("_[^_]+$", "", y) ) %>%
@@ -282,7 +308,7 @@ ord <- read.csv(here("tables","hippo_weighted_regressions.csv"), sep = ",") %>%
   unique()
 
 # do the plotting
-read.csv(here("tables","hippo_weighted_regressions.csv"), sep = ",") %>%
+read.csv(here("tables","hippo_base_weighted_regressions.csv"), sep = ",") %>%
   
   # prepare variables
   mutate(
@@ -341,8 +367,6 @@ ggsave(
 )
 
 
-# Base model = purely additive; robustness check = interactions; without BMI
-# Paired post-hoc tests AHI * SUBJ
 
 
 # table for the classical analysis
