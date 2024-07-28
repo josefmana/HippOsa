@@ -23,6 +23,7 @@ library(tidyverse)
 library(MatchIt)
 library(marginaleffects) # for inference using g-computation
 library(performance)
+library(ggh4x)
 
 theme_set( theme_bw() )
 
@@ -131,7 +132,7 @@ d0 %>%
   geom_boxplot( aes(fill = `OSA: `), width = .6, position = position_dodge(.7), linewidth = .75 ) +
   geom_dotplot( aes(fill = `OSA: `), binaxis = "y", stackdir = "center", position = position_dodge(.7), dotsize = 1.5 ) +
   labs( y = bquote("Standardized volume "(mm^3) ) ) +
-  ggh4x::facet_grid2( structure ~ side, scales = "free_y", independent = "y" ) +
+  facet_grid2( structure ~ side, scales = "free_y", independent = "y" ) +
   scale_fill_manual( values = c("#64CDCC","#F9A729") ) +
   theme_bw(base_size = 10) +
   theme(legend.position = "bottom")
