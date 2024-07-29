@@ -25,17 +25,18 @@ library(gt)
 
 ## Neuropsychological assessment
 
-All patients (PD) and healthy controls (HC) were administered a battery of neuropsychological tests at enrollment to the study and subsample of participants were administered the same tests at re-test four years after the enrollment. The battery included assessment of (i) declarative memory via Rey Auditory Verbal Learing Test (RAVLT) [@bezdicek2014; @frydrychova2018], (ii); attention via Trail Making Test, part A (TMT-A) [@bezdicek2012; @bezdicek2017a], and dot colour naming (PST-D) as well as naming colour of neutral words (PST-W) conditions from Prague Stroop Test [@bezdicek2015a]; (iii) executive function via Trail Making Test, part B [@bezdicek2012; @bezdicek2017a], and Prague Stroop Test, interference condition (i.e., naming colour of contrasting colour words, PST-C) [@bezdicek2015a]; and (iv) processing speed via Grooved Pegboard Test (GPT) [@klove1963]. The patients were further examined using tests from the standard International Parkinson and Movement Disorder Society (MDS) neuropsychological battery at Level II for mild cognitive impairment in Parkinson’s disease (PD-MCI) [@litvan2012;  @bezdicek2017]. The Czech normative calculator established by @bezdicek2017 was used to assign PD-MCI diagnosis to each PD patient separately at enrollment and retest. Finally, all participants were yearly administered Montreal cognitive assessment (MoCA) [@kopecek2017; @nasreddine2005] for cognitive screening.
+All patients (PD) and healthy controls (HC) were administered a battery of neuropsychological tests at enrollment to the study and a subsample of participants were administered the same tests at re-test four years after the enrollment. The battery included assessment of (i) declarative memory via Rey Auditory Verbal Learing Test (RAVLT) [@bezdicek2014; @frydrychova2018]; (ii) attention via Trail Making Test, part A (TMT-A) [@bezdicek2012; @bezdicek2017a], and dot colour naming (PST-D) as well as naming colour of neutral words (PST-W) conditions from Prague Stroop Test [@bezdicek2015a]; (iii) executive function via Trail Making Test, part B [@bezdicek2012; @bezdicek2017a], and Prague Stroop Test, interference condition (i.e., naming colour of contrasting colour words, PST-C) [@bezdicek2015a]; and (iv) processing speed via Grooved Pegboard Test (GPT) [@klove1963]. The patients were further examined using tests from the standard International Parkinson and Movement Disorder Society (MDS) neuropsychological battery at Level II for mild cognitive impairment in Parkinson’s disease (PD-MCI) [@litvan2012;  @bezdicek2017]. The Czech normative calculator established by @bezdicek2017 was used to assign PD-MCI diagnosis to each PD patient separately at enrollment and retest. Finally, all participants were administered Montreal cognitive assessment (MoCA) [@kopecek2017; @nasreddine2005] annually for cognitive screening.
 
 ## Statistical analysis
 
-All demographic variables were described by their mean and standard deviation if continuous and frequency if nominal separately for HC OSA-, HC OSA+, PD OSA-, and PD OSA+ groups of participants.
+All demographic (age, education, gender) and descriptive clinical (BMI, BDI-II, MDS-UPDRS III, disease duration) variables were described by their mean and standard deviation if continuous and frequency if nominal separately for HC OSA-, HC OSA+, PD OSA-, and PD OSA+ groups of participants, and compared by Gaussian (continuous variables) or logistic (binary variables) regression with group (PD vs HC), OSA (OSA+ vs OSA-) and their interaction as predictors. As we did not aim to control type I error rate in these analyses, decision threshold for claiming statistically significant difference in demographic and decscriptive clinical variables was set at p < .05 without adjustment for multiple comparisons.
 
 ### Cortical thickness
 
 *4 Fíla*
 
 ### Subcortical volummetry
+
 
 
 ### Cognitive variables
@@ -45,6 +46,13 @@ All demographic variables were described by their mean and standard deviation if
 # Results
 
 ## Sample description
+
+```{r}
+#| label: tbl-desc
+#| tbl-cap: Demographic and descriptive clinical variables
+
+
+```
 
 ## Cortical thickness
 
