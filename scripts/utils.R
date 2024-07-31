@@ -11,6 +11,35 @@ zerolead <- function(x, d = 3) ifelse( x < .001, "< .001", sub("0.", ".", rprint
 # calculate and print mean and SD ----
 msd <- function(x, d = 2) paste0( rprint( mean(x, na.rm = T), d ), " ± ", rprint( sd(x, na.rm = T), d ) )
 
+# get frequency and proportion of binary variables ----
+freqprop <- function(x, d = 0) paste0( table(x)[2], " (", rprint( 100*prop.table( table(x) )[2], d = d ), "%)" )
+
+# extract t/z values and p values ----
+statextract <- function(coeffs, y, stat = "t") coeffs %>%
+  
+  as.data.frame() %>%
+  mutate(y = y, .before = 1) %>%
+  rownames_to_column("coefficient") %>%
+  
+  mutate(
+    out = paste0(
+      stat," = ", rprint( get( paste0(stat," value") ), 2 ),
+      ", p ",
+      if_else(
+        get( paste0("Pr(>|",stat,"|)") ) < .001,
+        zerolead( get( paste0("Pr(>|",stat,"|)") ) ),
+        paste0("= ", zerolead( get( paste0("Pr(>|",stat,"|)") ) ) )
+      )
+    )
+  ) %>%
+  select( -paste0(stat," value"), -paste0("Pr(>|",stat,"|)") ) %>%
+  pivot_wider(
+    names_from = coefficient,
+    values_from = out
+  ) %>%
+  select(-`(Intercept)`)
+
+
 # fit regressions ----
 fit_reg <- function(d, outcomes, X = "SUBJ * AHI.F + AGE + GENDER + SBTIV", w = F) {
   

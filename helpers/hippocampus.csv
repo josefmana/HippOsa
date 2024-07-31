@@ -1,43 +1,43 @@
-name,side,structure
-Whole_hippocampal_head_rhx,Right,NA
-Whole_hippocampal_body_rhx,Right,NA
-Hippocampal_tail_rhx,Right,NA
-hippocampal_fissure_rhx,Right,NA
-fimbria_rhx,Right,NA
-parasubiculum_rhx,Right,NA
-HATA_rhx,Right,NA
-presubiculum_head_rhx,Right,NA
-subiculum_head_rhx,Right,NA
-CA1_head_rhx,Right,NA
-CA3_head_rhx,Right,NA
-molecular_layer_HP_head_rhx,Right,NA
-GC_ML_DG_head_rhx,Right,NA
-CA4_head_rhx,Right,NA
-presubiculum_body_rhx,Right,NA
-subiculum_body_rhx,Right,NA
-CA1_body_rhx,Right,NA
-CA3_body_rhx,Right,NA
-molecular_layer_HP_body_rhx,Right,NA
-GC_ML_DG_body_rhx,Right,NA
-CA4_body_rhx,Right,NA
-Whole_hippocampal_head_lhx,Left,NA
-Whole_hippocampal_body_lhx,Left,NA
-Hippocampal_tail_lhx,Left,NA
-hippocampal_fissure_lhx,Left,NA
-fimbria_lhx,Left,NA
-parasubiculum_lhx,Left,NA
-HATA_lhx,Left,NA
-presubiculum_head_lhx,Left,NA
-subiculum_head_lhx,Left,NA
-CA1_head_lhx,Left,NA
-CA3_head_lhx,Left,NA
-molecular_layer_HP_head_lhx,Left,NA
-GC_ML_DG_head_lhx,Left,NA
-CA4_head_lhx,Left,NA
-presubiculum_body_lhx,Left,NA
-subiculum_body_lhx,Left,NA
-CA1_body_lhx,Left,NA
-CA3_body_lhx,Left,NA
-molecular_layer_HP_body_lhx,Left,NA
-GC_ML_DG_body_lhx,Left,NA
-CA4_body_lhx,Left,NA
+var,side,structure,order,block,name
+Whole_hippocampal_head_rhx,Right,Hippocampal head,1,Longitudinal axis,Hippocampal_head_right
+Whole_hippocampal_body_rhx,Right,Hippocampal body,2,Longitudinal axis,Hippocampal_body_right
+Hippocampal_tail_rhx,Right,Hippocampal tail,3,Longitudinal axis,Hippocampal_tail_right
+hippocampal_fissure_rhx,Right,NA,NA,NA,NA
+fimbria_rhx,Right,NA,NA,NA,NA
+parasubiculum_rhx,Right,Parasubiculum,4,Parasubiculum,parasubiculum_right
+HATA_rhx,Right,HATA,10,Horizontal axis - head,HATA_right
+presubiculum_head_rhx,Right,Presubiculum,5,Horizontal axis - head,presubiculum_head_right
+subiculum_head_rhx,Right,Subiculum,6,Horizontal axis - head,subiculum_head_right
+CA1_head_rhx,Right,CA1,7,Horizontal axis - head,CA1_head_right
+CA3_head_rhx,Right,CA3,8,Horizontal axis - head,CA3_head_right
+molecular_layer_HP_head_rhx,Right,CA4DG,9,Horizontal axis - head,CA4DG_head_right
+GC_ML_DG_head_rhx,Right,CA4DG,9,Horizontal axis - head,CA4DG_head_right
+CA4_head_rhx,Right,CA4DG,9,Horizontal axis - head,CA4DG_head_right
+presubiculum_body_rhx,Right,Presubiculum,5,Horizontal axis - body,presubiculum_body_right
+subiculum_body_rhx,Right,Subiculum,6,Horizontal axis - body,subiculum_body_right
+CA1_body_rhx,Right,CA1,7,Horizontal axis - body,CA1_body_right
+CA3_body_rhx,Right,CA3,8,Horizontal axis - body,CA3_body_right
+molecular_layer_HP_body_rhx,Right,CA4DG,9,Horizontal axis - body,CA4DG_body_right
+GC_ML_DG_body_rhx,Right,CA4DG,9,Horizontal axis - body,CA4DG_body_right
+CA4_body_rhx,Right,CA4DG,9,Horizontal axis - body,CA4DG_body_right
+Whole_hippocampal_head_lhx,Left,Hippocampal head,1,Longitudinal axis,Hippocampal_head_left
+Whole_hippocampal_body_lhx,Left,Hippocampal body,2,Longitudinal axis,Hippocampal_body_left
+Hippocampal_tail_lhx,Left,Hippocampal tail,3,Longitudinal axis,Hippocampal_tail_left
+hippocampal_fissure_lhx,Left,NA,NA,NA,NA
+fimbria_lhx,Left,NA,NA,NA,NA
+parasubiculum_lhx,Left,Parasubiculum,4,Parasubiculum,parasubiculum_left
+HATA_lhx,Left,HATA,10,Horizontal axis - head,HATA_left
+presubiculum_head_lhx,Left,Presubiculum,5,Horizontal axis - head,presubiculum_head_left
+subiculum_head_lhx,Left,Subiculum,6,Horizontal axis - head,subiculum_head_left
+CA1_head_lhx,Left,CA1,7,Horizontal axis - head,CA1_head_left
+CA3_head_lhx,Left,CA3,8,Horizontal axis - head,CA3_head_left
+molecular_layer_HP_head_lhx,Left,CA4DG,9,Horizontal axis - head,CA4DG_head_left
+GC_ML_DG_head_lhx,Left,CA4DG,9,Horizontal axis - head,CA4DG_head_left
+CA4_head_lhx,Left,CA4DG,9,Horizontal axis - head,CA4DG_head_left
+presubiculum_body_lhx,Left,Presubiculum,5,Horizontal axis - body,presubiculum_body_left
+subiculum_body_lhx,Left,Subiculum,6,Horizontal axis - body,subiculum_body_left
+CA1_body_lhx,Left,CA1,7,Horizontal axis - body,CA1_body_left
+CA3_body_lhx,Left,CA3,8,Horizontal axis - body,CA3_body_left
+molecular_layer_HP_body_lhx,Left,CA4DG,9,Horizontal axis - body,CA4DG_body_left
+GC_ML_DG_body_lhx,Left,CA4DG,9,Horizontal axis - body,CA4DG_body_left
+CA4_body_lhx,Left,CA4DG,9,Horizontal axis - body,CA4DG_body_left

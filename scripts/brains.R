@@ -2,7 +2,6 @@
 #
 # RQ1) the moderating effect OSA on subcortical brain structures' volume in de novo PD
 # RQ2) the moderating effect OSA on hippocampal substructures' volume in de novo PD
-#
 
 
 rm( list = ls() ) # clear environment
@@ -22,7 +21,7 @@ sapply( c("figures","tables"), function(i) if( !dir.exists(i) ) dir.create(i) )
 
 # read helper files with variable names
 subco <- read.csv( here("helpers","subcortical.csv"), sep = ",") # subcortical structures
-hippo <- read.csv( here("helpers","hippocampus.csv"), sep = ",") # hippocampal structures
+hippo <- read.csv( here("helpers","hippocampus.csv"), sep = ",") %>% filter( complete.cases(name) ) # hippocampal structures
 
 # in-house functions
 source( here("scripts","utils.R") )
@@ -32,8 +31,18 @@ source( here("scripts","utils.R") )
 
 # read the data
 d0 <-
-  read.csv( here("_data","primary_dataset.csv"), sep = "," ) %>%
-  filter(event == "enrollment")
+
+  read.csv( here("_data","primary_dataset.csv"), sep = "," ) %>% # read data
+  filter(event == "enrollment") %>% # keep enrollment only
+  
+  # re-calculate hippocampal fields according to the legend in hippo
+  mutate(
+    !!!setNames( rep(NA, length( unique(hippo$name) ) ), unique(hippo$name) ),
+    across(
+      .cols = unique(hippo$name),
+      .fns = ~ rowSums( across( all_of( with( hippo, var[name == cur_column()] ) ) ) )
+    )
+  )
 
 # format it for analyses
 df <- d0 %>%
@@ -48,7 +57,7 @@ df <- d0 %>%
   mutate(
     SBTIV = as.numeric( scale(SBTIV) ),
     across( all_of(subco$name), ~ as.numeric( scale(.x) ) ),
-    across( all_of(hippo$name), ~ as.numeric( scale(.x) ) )
+    across( all_of( unique(hippo$name) ), ~ as.numeric( scale(.x) ) )
   ) %>%
   
   # set-up contrasts to avoid multicollinearity in interaction terms
@@ -84,8 +93,8 @@ d0 %>%
     ),
     Diagnosis = if_else(SUBJ == "PD", "PD", "HC"),
     `OSA: ` = factor(
-      if_else(AHI.F == "H", "AHI ≥ 15", "AHI < 15"),
-      levels = c("AHI < 15","AHI ≥ 15"),
+      if_else(AHI.F == "H", "OSA+", "OSA-"),
+      levels = c("OSA-","OSA+"),
       ordered = T
     )
   ) %>%
@@ -137,7 +146,7 @@ lapply(
             
             
             # fit the models
-            fit <- fit_reg(df, name, X = preds[r, "X"], w = F)
+            fit <- fit_reg(df, unique(name), X = preds[r, "X"], w = F)
             
             # regression coefficients with threshold-based decisions
             # do full analysis for subcortical structures and interaction only for hippocampal substructures
@@ -195,7 +204,19 @@ lapply(
 
 ## ---- subcortical structures regressions ----
 
-read.csv(here("tables","subco_base_marginal_effects.csv"), sep = ",") %>%
+left_join(
+  
+  # the marginal effects
+  read.csv(here("tables","subco_base_marginal_effects.csv"), sep = ","),
+  
+  # add BH adjusted significance statements
+  read.csv(here("tables","subco_base_marginal_effects.csv"), sep = ",") %>%
+    filter( is.na(SUBJ) ) %>%
+    mutate( sig = bh_adjust(p.value) ) %>%
+    filter(term == "PD - CON") %>%
+    select(y, sig)
+  
+) %>%
   
   # prepare variables
   mutate(
@@ -207,11 +228,8 @@ read.csv(here("tables","subco_base_marginal_effects.csv"), sep = ",") %>%
       term == "PD - CON" ~ "PD - HC"
     ),
     
-    # estimand of interest
-    `Estimand: ` = case_when(
-      `Group: ` %in% c("HC","PD") ~ "Simple main effect",
-      `Group: ` == "PD - HC" ~ "Interaction"
-    ),
+    # significance statement
+    `Sig. (5% FDR):` = if_else(sig == "*", T, F),
     
     # hemisphere of the outcome variable
     side = unlist(
@@ -233,17 +251,17 @@ read.csv(here("tables","subco_base_marginal_effects.csv"), sep = ",") %>%
   
   # keep only rows and columns of interest/use
   filter( complete.cases(`Group: `) ) %>%
-  select(y, side, structure, `Group: `, `Estimand: `, estimate, conf.low, conf.high) %>%
+  select(y, side, structure, `Group: `, `Sig. (5% FDR):`, estimate, conf.low, conf.high) %>%
   
   # plotting proper
   ggplot() +
-  aes(y = estimate, ymin = conf.low, ymax = conf.high, x = structure, shape = `Group: `, colour = `Estimand: `) +
+  aes(y = estimate, ymin = conf.low, ymax = conf.high, x = structure, shape = `Group: `, colour = `Sig. (5% FDR):`) +
   geom_point(position = position_dodge(width = .3), size = 3.3) + # point estimates
   geom_linerange(position = position_dodge(width = .3), linewidth = 1) + # 95% CIs
   geom_hline(yintercept = 0, linetype = "dashed", colour = "black") + # zero for reference
   coord_flip() + # use flip if decided to cut the range of values shown 
   facet_wrap( ~ side, ncol = 2 ) + # a column per hemisphere
-  scale_colour_manual( values = c("red","navyblue") ) + # simple effects blue, interaction red
+  scale_colour_manual( values = c("grey","orange") ) + # simple effects blue, interaction red
   labs(x = NULL, y = "mean(OSA-) - mean(OSA+)") + # estimate is that of difference between OSA- and OSA+ expected means
   theme(legend.position = "right")
 
@@ -259,17 +277,22 @@ ggsave(
 
 ## ---- hippocampal structures regressions ----
 
-# extract structures ordered by s-value (from largest to smallest) on the PD * OSA interaction
-ord <- read.csv(here("tables","hippo_base_marginal_effects.csv"), sep = ",") %>%
-  filter(term == "PD - CON") %>%
-  arrange( desc(s.value) ) %>%
-  mutate( y = sub("_[^_]+$", "", y) ) %>%
-  select(y) %>%
-  unlist(use.names = F) %>%
-  unique()
+# prepare order of structures
+ord <- hippo[ c("structure","order") ] %>% unique() %>% arrange(order) %>% select(structure) %>% unlist(use.names = F)
 
-# do the plotting
-read.csv(here("tables","hippo_base_marginal_effects.csv"), sep = ",") %>%
+# plot it
+left_join(
+  
+  # marginal effects
+  read.csv(here("tables","hippo_base_marginal_effects.csv"), sep = ","),
+  
+  # add BH adjusted significance statements for interactions
+  read.csv(here("tables","hippo_base_marginal_effects.csv"), sep = ",") %>%
+    filter(term == "PD - CON") %>%
+    mutate( sig = bh_adjust(p.value) ) %>%
+    select(y, sig)
+  
+) %>%
   
   # prepare variables
   mutate(
@@ -281,22 +304,26 @@ read.csv(here("tables","hippo_base_marginal_effects.csv"), sep = ",") %>%
       term == "PD - CON" ~ "PD - HC"
     ),
     
-    # estimand of interest
-    `Estimand: ` = case_when(
-      `Group: ` %in% c("HC","PD") ~ "Simple main effect",
-      `Group: ` == "PD - HC" ~ "Interaction"
-    ),
+    # significance statement
+    `Sig. (5% FDR):` = if_else(sig == "*", T, F),
     
     # hemisphere of the outcome variable
     side = case_when(
-      grepl("_lhx", y) ~ "Left",
-      grepl("_rhx", y) ~ "Right"
+      grepl("_left", y) ~ "Left",
+      grepl("_right", y) ~ "Right"
     ),
     
     # outcome variable brain structure
-    structure = factor(
-      sub("_[^_]+$", "", y),
+    struct = factor(
+      unlist( sapply( 1:nrow(.), function(i) with( hippo, unique( structure[name == y[[i]]] ) ) ), use.names = F),
       levels = rev(ord),
+      ordered = T
+    ),
+    
+    # block
+    block = factor(
+      unlist( sapply( 1:nrow(.), function(i) with( hippo, unique( block[name == y[[i]]] ) ) ), use.names = F),
+      levels = unique(hippo$block),
       ordered = T
     )
     
@@ -304,17 +331,17 @@ read.csv(here("tables","hippo_base_marginal_effects.csv"), sep = ",") %>%
   
   # keep only rows and columns of interest/use
   filter( complete.cases(`Group: `) ) %>%
-  select(y, side, structure, `Group: `, `Estimand: `, estimate, conf.low, conf.high) %>%
+  select(y, side, struct, block, `Group: `, `Sig. (5% FDR):`, estimate, conf.low, conf.high) %>%
   
   # plotting proper
   ggplot() +
-  aes(y = estimate, ymin = conf.low, ymax = conf.high, x = structure, shape = `Group: `, colour = `Estimand: `) +
+  aes(y = estimate, ymin = conf.low, ymax = conf.high, x = struct, shape = `Group: `, colour = `Sig. (5% FDR):`) +
   geom_point(position = position_dodge(width = .5), size = 3) + # point estimates
   geom_linerange(position = position_dodge(width = .5), linewidth = 1) + # 95% CIs
   geom_hline(yintercept = 0, linetype = "dashed", colour = "black") + # zero for reference
   coord_flip() + # use flip if decided to cut the range of values shown 
-  facet_wrap( ~ side, ncol = 2 ) + # a column per hemisphere
-  scale_colour_manual( values = c("red","navyblue") ) + # simple effects blue, interaction red
+  facet_grid(block ~ side, scale = "free_y", space = "free") + # a column per hemisphere
+  scale_colour_manual( values = c("grey","orange") ) + # simple effects blue, interaction red
   labs(x = NULL, y = "mean(OSA-) - mean(OSA+)") + # estimate is that of difference between OSA- and OSA+ expected means
   theme(legend.position = "right")
 
@@ -323,8 +350,8 @@ ggsave(
   plot = last_plot(),
   filename = here("figures","hippo_forest.jpg"),
   dpi = 300,
-  width = 10,
-  height = 13
+  width = 8,
+  height = 12.5
 )
 
 
