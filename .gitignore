@@ -1,6 +1,14 @@
 # files not supposed to be shared
 mods/**/*.rds
 **/.DS_Store
+**/*.docx
+**/*.pages
+**/*.tiff
+**/*.aux
+**/*.out
+**/*.ttt
+**/*.fff
+**/*.log
 
 # ignore all _ folders & files
 _*/

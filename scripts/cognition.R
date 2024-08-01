@@ -78,7 +78,7 @@ write.table(
       df[ complete.cases(df[, y]), c("event","group","osa") ] %>%
       table() %>%
       as.data.frame() %>%
-      mutate(osa = paste0("OSA",osa) ) %>%
+      mutate(osa = paste0( "OSA", case_when(osa == "+" ~ "H", osa == "-" ~ "L") ) ) %>%
       mutate(
         domain = with( psych, domain[variable == y] ),
         y = with( psych, label[variable == y] ),
@@ -238,8 +238,8 @@ d0 %>%
     Group = group,
     Event = gsub("(^|[[:space:]])([[:alpha:]])", "\\1\\U\\2", event, perl = T),
     `OSA: ` = factor(
-      if_else(osa == "+", "AHI ≥ 15", "AHI < 15"),
-      levels = c("AHI < 15","AHI ≥ 15"),
+      if_else(osa == "+", "OSA+", "OSA-"),
+      levels = c("OSA-","OSA+"),
       ordered = T
     )
   ) %>%

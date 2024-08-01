@@ -1,4 +1,4 @@
-domain,y,enrollment_HC_OSA-,retest_HC_OSA-,enrollment_PD_OSA-,retest_PD_OSA-,enrollment_HC_OSA+,retest_HC_OSA+,enrollment_PD_OSA+,retest_PD_OSA+
+domain,y,enrollment_HC_OSAL,retest_HC_OSAL,enrollment_PD_OSAL,retest_PD_OSAL,enrollment_HC_OSAH,retest_HC_OSAH,enrollment_PD_OSAH,retest_PD_OSAH
 Memory,RAVLT-IR,21,10,23,17,20,5,20,13
 Memory,RAVLT-B,21,10,23,17,20,5,20,13
 Memory,RAVLT-DR,21,10,23,17,20,5,20,13
