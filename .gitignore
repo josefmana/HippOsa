@@ -9,6 +9,7 @@ mods/**/*.rds
 **/*.ttt
 **/*.fff
 **/*.log
+**/*.tex
 
 # ignore all _ folders & files
 _*/
