@@ -26,31 +26,28 @@ source( here("scripts","utils.R") ) # in-house functions
 
 ## Neuropsychological assessment
 
-All patients (PD) and healthy controls (HC) were administered a battery of neuropsychological tests at enrollment to the study and a subsample of participants were administered the same tests at re-test four years after the enrollment. The battery included assessment of (i) declarative memory via Rey Auditory Verbal Learing Test (RAVLT) [@bezdicek2014; @frydrychova2018]; (ii) attention via Trail Making Test, part A (TMT-A) [@bezdicek2012; @bezdicek2017a], and dot colour naming (PST-D) as well as naming colour of neutral words (PST-W) conditions from Prague Stroop Test [@bezdicek2015a]; (iii) executive function via Trail Making Test, part B [@bezdicek2012; @bezdicek2017a], and Prague Stroop Test, interference condition (i.e., naming colour of contrasting colour words, PST-C) [@bezdicek2015a]; and (iv) processing speed via Grooved Pegboard Test (GPT) [@klove1963]. The patients were further examined using tests from the standard International Parkinson and Movement Disorder Society (MDS) neuropsychological battery at Level II for mild cognitive impairment in Parkinson’s disease (PD-MCI) [@litvan2012;  @bezdicek2017]. The Czech normative calculator established by @bezdicek2017 was used to assign PD-MCI diagnosis to each PD patient separately at enrollment and retest. Finally, all participants were administered Montreal cognitive assessment (MoCA) [@kopecek2017; @nasreddine2005] annually for cognitive screening.
+All patients (PD) and healthy controls (HC) were administered a battery of neuropsychological tests including screening via Montreal cognitive assessment (MoCA) [@kopecek2017; @nasreddine2005], and assessment of (i) declarative memory via Rey Auditory Verbal Learing Test (RAVLT) [@bezdicek2014; @frydrychova2018]; (ii) attention via Trail Making Test, part A (TMT-A) [@bezdicek2012; @bezdicek2017a], and dot colour naming (PST-D) as well as naming colour of neutral words (PST-W) conditions from Prague Stroop Test [@bezdicek2015a]; (iii) executive function via Trail Making Test, part B [@bezdicek2012; @bezdicek2017a], and Prague Stroop Test, interference condition (i.e., naming colour of contrasting colour words, PST-C) [@bezdicek2015a]; and (iv) processing speed via Grooved Pegboard Test (GPT) [@klove1963]. The patients were further examined using tests from the standard International Parkinson and Movement Disorder Society (MDS) neuropsychological battery at Level II for mild cognitive impairment in Parkinson’s disease (PD-MCI) [@litvan2012;  @bezdicek2017]. The Czech normative calculator established by @bezdicek2017 was used to assign PD-MCI diagnosis to each PD patient.
 
 ## Statistical analyses
 
-All demographic (age, education, gender) and descriptive clinical (RBD, MoCA, BMI, BDI-II, age at first motor symptom, disease duration, MDS-UPDRS I, II and III) variables were described by their mean and standard deviation if continuous and frequency if nominal separately for HC OSA-, HC OSA+, PD OSA-, and PD OSA+ groups of participants, and compared by Gaussian (continuous variables) or logistic (binary variables) regression with group (PD vs. HC), OSA (OSA+ vs. OSA-) and their interaction as predictors if variables were measured in both PD and HC groups, and with OSA only as predictor if variables were measured in PD group only (i.e., disease-specific variables). As we did not aim to control type I error rate in these analyses, decision threshold for claiming statistically significant difference in demographic and decscriptive clinical variables was set at p < .05 without adjustment for multiple comparisons.
+Demographic (age, education, gender) and descriptive clinical (RBD, MoCA, BMI, BDI-II, age at first motor symptom, disease duration, MDS-UPDRS I, II and III) variables were described by their mean and standard deviation if continuous and frequency if nominal separately for HC OSA-, HC OSA+, PD OSA-, and PD OSA+ groups of participants, and compared by Gaussian (continuous variables) or logistic (binary variables) regression with group (PD vs. HC), OSA (OSA+ vs. OSA-) and their interaction as predictors if variables were measured in both PD and HC groups, and with OSA only as predictor if variables were measured in PD group only (i.e., disease-specific variables). As we did not aim to control type I error rate in these analyses, decision threshold for claiming statistically significant difference in demographic and descriptive clinical variables was set at p < .05 without adjustment for multiple comparisons.
 
 ### Cortical thickness
 
-*4 Fíla*
-
 ### Subcortical volummetry
 
-The strength of association of subcortical structures' volume with group (PD vs HC) and OSA (OSA+ vs OSA-) was evaluated by a set of univariate linear regressions fitted to data via QR decomposition. Each subcortical structure's volume was regressed on group, OSA and their interaction as exposures of interest, and years of age, gender and TIV as additive linear covariates. All continuous variables were standardised (i.e., mean-centred and scaled by their in-sample standard deviation) before entering the analysis, and nominal variables were entered via sum coding. Each regression was tested for deviation from normality of residuals via the Shapiro-Wilk test and deviation from homoscedasticity via the Breusch-Pagan test. Within the classical Neyman-Pearson hypothesis testing framework, we selected a decision threshold for rejecting the hypothesis of zero association between subcortical structure's volume and group/OSA by adjusting for 5% false discovery rate (FDR) [@benjamini1995] in tests of all main effects and interactions of interest (i.e., coefficients related to the group and OSA variables) across all subcortical structures examined in this section. The test statistics consisted of *t*-values for each relevant regression coefficient calculated by lm() function in R software for statistical computing [@rsoft]. The primary estimand of interest, i.e., the interaction between group and OSA, was further characterised by calculating simple main effects of OSA within each group and the difference between these simple main effects via the avg_comparisons() function in the "marginaleffects" R package [@marginaleffects].
-
-Based on the results of the primary analyses outlined above, we further explored association of hippocampal fields with group and OSA in a series of post-hoc univariate regressions with identical specification as described above. The only difference between the primary analyses of the gross subcortical structures described above, and the analysis of hippocampal fields was that in the latter case, we focused on the group/OSA interaction only. The decision threshold for rejecting the hypothesis of zero group/OSA interaction was set according to adjustment for 5% FDR within this set of analyses.
-
-Finally, to reflect current recommendations of the American Statistical Association which advised against basing scientific conclusions on whether a *p*-value passes a specific threshold [@wasserstein2016], we also calculated Shannon information (i.e., s-values) $\text{-}log_2{(p)}$. S-value is cognitive tool to help researchers intuitively evaluate strength of evidence against a null hypothesis contained in the results as equivalent to the number consecutive "heads" tosses that would provide the same amount of evidence against the null hypothesis that the coin is fair [@greenland2019; @cole2021].
+Distribution of subcortical structures' volume conditional on group (PD vs HC) and OSA (OSA+ vs OSA-) was evaluated by a set of univariate linear regressions fitted to data via QR decomposition. Each subcortical structure's volume was regressed on group, OSA and their interaction as exposures of interest, and years of age, gender and TIV as additive linear covariates (i.e., no covariate/exposure interactions were allowed). All continuous variables were standardised (i.e., mean-centred and scaled by their in-sample standard deviation) before entering the analysis, and nominal variables were entered via sum coding. Each regression was tested for deviation from normality of residuals via the Shapiro-Wilk test and deviation from homoscedasticity via the Breusch-Pagan test. Based on the results of the primary analysis outlined above, we further explored association between hippocampal fields, and group and OSA in a series of post-hoc univariate regressions with identical specification as described above. The only difference between the primary analysis of subcortical structures described above, and the analysis of hippocampal fields was that in the latter case, we focused on the group/OSA interaction only. The decision threshold for rejecting the hypothesis of zero group/OSA interaction was set according to adjustment for 5% FDR within this set of analyses.
 
 ### Cognitive variables
 
-The distribution of cognitive performance conditional on group, OSA, and measurement occasion (enrollment vs retest) was evaluated using a set of independent Bayesian linear mixed models (LMMs) with cognitive test scores regressed on group, OSA, occasion, and their interactions as fixed effects on group-level and participant-specific random intercepts. All outcomes were standardised before entering the analysis and response time variables were log-transformed before standardising. Contrasts described by @rouder2012 as implemented in contr.equalprior() function from the "bayestestR" R package [@makowski2019] were specified for all group-level parameters to ensure that all pairwise prior differences are centred around zero. Weakly informative priors, i.e. *Normal(0,1)* for group-level parameters and *Exponential(1)* for participant-level and residual variances, were specified to ensure the model converges to reasonable parameter values. Employing LMMs allowed us to use all data without requiring the participants to have both enrollment and retest measurements.
+Distribution of cognitive performance indexes conditional on group and OSA was evaluated by a set of univariate linear regressions with identical specification as described in the Subcortical volummetry section with the only difference being that TIV was not included in the covariate set but years of education were. Moreover, response time variables were log-transformed and then reversed (i.e., multiplied by negative one) before standardising. Finally, since it is generally accepted that the variance increases with the mean in response time variables [@wagenmakers2007], we re-fitted relevant cognitive models (i.e., models with statistically significant difference in mean outcome conditional on any of the exposures) with statistically significant deviation from homoscedasticity via a Bayesian distributional linear regression that allows for addressing heteroscedasticity by modelling it directly [@bürkner2017]. Re-fitted models included all the same terms as the original linear regressions with added computation of residual standard deviation conditional on group, OSA, group/OSA interaction, years of age, sex, and years of education. The models were fitted using Stan’s (version 2.21.0) build-in Hamiltonian Monte Carlo sampler accessed via R version `r with( version, paste(major,minor,sep=".") )` using package “brms” [@bürkner2017; @rsoft; @stan] with manually specified weakly informative priors and default "brms" settings otherwise (see the R code at [https://github.com/josefmana/pd_hippOSA.git](https://github.com/josefmana/pd_hippOSA.git)). As a check of results robustness to heteroscedasticity, parameter estimates of the Bayesian distributional models were then compared to coefficients of the classical linear regressions.
 
-To ensure the results are informed by data, prior and likelihood sensitivity of posterior estimates was evaluated via the powerscale_sensitivity() function from "priorsense" R package [@kallioinen2023]. Moreover, to evaluate model fit, posterior predictive means and SDs of the model within each combination of group, OSA, and assessment were visually compared to values observed in the data. All LMMs were fitted using Stan’s (version 2.21.0) build-in Hamiltonian Monte Carlo sampler accessed via R version `r with( version, paste(major,minor,sep=".") )` using package “brms” [@bürkner2017; @rsoft; @stan]. Four parallel chains were run each for 2,000 iterations for each LMM with the first 1,000 iterations serving as a warm-up. Convergence was checked numerically by inspection of the $\hat{R}s$ and visually by inspection of trace plots.
+### Statistical testing
 
-After establishing model fit, the results were summarised by computing pairwise comparisons based on main effects, two-way interactions and three-way interactions between group, OSA and occasion. These comparisons were then described by their medians, 95% equal-tailed posterior probability intervals (PPIs), and probability of direction (*pd*, i.e., the certainty associated with the most probable direction of the effect) on the original outcome scale. Since this portion of our analysis was purely exploratory and was not set-up to formally test any hypothesis, we did not set any decision threshold regarding reported posterior comparisons but instead interpreted *pd* as continous index of effect existence probability following guidelines of @makowski2019b whereby *pd* $\leq$ 95% indicates uncertain effect, *pd* > 95% indicates possibly existing effect, *pd* > 97% indicates likely existing effect, *pd* > 99% indicates probably existing effect, and *pd* > 99.9% indicates almost certainly existing effect.
+Within the classical Neyman-Pearson hypothesis testing framework, we selected a set of decision thresholds for rejecting the hypothesis of zero difference between means of subcortical structure's volume and cognitive indexes conditional on group/OSA by adjusting for 5% false discovery rate (FDR) [@benjamini1995] in tests of all main effects and interactions of interest (i.e., coefficients related to the group and OSA variables) within each analysis. The test statistics consisted of *t*-values for each relevant regression coefficient calculated by lm() function in R software for statistical computing [@rsoft]. The primary estimand of interest, i.e., the interaction between group and OSA, was further characterised by calculating simple main effects of OSA within each group and the difference between these simple main effects via the avg_comparisons() function in the "marginaleffects" R package [@marginaleffects]. In the exploratory analysis of hippocampal fields' distributions, only the group/OSA interaction was considered and the decision threshold of this analysis was thus adjusted for 5% FDR for the number of hippocampal fields only.
+
+Finally, to reflect current recommendations of the American Statistical Association which advised against basing scientific conclusions on whether a *p*-value passes a specific threshold [@wasserstein2016], we also calculated Shannon information (i.e., s-values) $\text{-}log_2{(p)}$. S-value is cognitive tool to help researchers intuitively evaluate strength of evidence against a null hypothesis contained in the results as equivalent to the number consecutive "heads" tosses that would provide the same amount of evidence against the null hypothesis that the coin is fair [@greenland2019; @cole2021].
+
 
 # Results
 
@@ -60,6 +57,7 @@ After establishing model fit, the results were summarised by computing pairwise 
 d <- read.csv( here("_data","primary_dataset.csv"), sep = "," ) # read data
 d0 <- subset(d, event == "enrollment") # extract enrollment only for stats
 subco <- read.csv( here("helpers","subcortical.csv"), sep = ",") # subcortical structures
+hippo <- read.csv( here("helpers","hippocampus.csv"), sep = ",") %>% filter( complete.cases(name) ) # hippocampal fields
 psych <- read.csv( here("helpers","psychs.csv"), sep = ";") # read helper files with variable names
 
 # extract number of participants
@@ -153,32 +151,30 @@ read.csv( here("tables","descriptives.csv"), sep = ";" ) %>%
 
 ## Cortical thickness
 
-*4 Fíla*
-
 ## Subcortical volummetry
 
-Across fitted linear regressions, models of left and right Accumbens showed deviations from homoscedasticity, and model of left Thalamus showed deviation from normality of residuals. None of the remaining models showed deviations from any assumption of linear regression (see Supplementary Table *subco_base_regression_coefficients.csv [NOTE FROM PEPA - placeholder text for a supplementary .csv or .xlsx]*). @fig-subco-boxplots presents single data points organised by hemisphere, subcortical structure, diagnosis group and OSA. After adjusting decision threshold for 5% FDR, we can reject the null hypothesis of zero group/OSA interaction for age, sex and TIV adjusted hippocampal volume bilaterally (@tbl-subco). This result stemms from the observation that whereas in PD group, OSA+ subjects had reliably smaller hippocampal adjusted volumes than OSA- subjects, in HC group, the difference between OSA+ and OSA- subjects' hippocampal adjusted volumes did not reach statistical significance (@fig-subco-forest). Similar pattern of results was observed in Pallidum, Amygdala, and Caudate without reaching significance level at the adjusted 5% FDR.
+Across linear regressions, models of left and right Accumbens showed deviation from homoscedasticity, and model of left Thalamus showed deviation from normality of residuals. None of the remaining models showed deviations from any assumption of linear regression (see Supplementary Table *subcortical_regression_coefficients.csv*). @fig-subco-boxplots presents single data points organised by hemisphere, subcortical structure, diagnosis group and OSA. After adjusting decision threshold for 5% FDR, we can reject the null hypothesis of zero group/OSA interaction for age, sex and TIV adjusted hippocampal volume bilaterally (@tbl-subco). This result stems from the observation that whereas in PD group, OSA+ subjects had reliably smaller hippocampal adjusted volumes than OSA- subjects, in HC group, the difference between OSA+ and OSA- subjects' hippocampal adjusted volumes did not reach statistical significance (@fig-subco-forest). Similar pattern of results was observed in Pallidum, Amygdala, and Caudate without reaching significance level at the adjusted 5% FDR.
 
-![Raw data (points) as well as median (bar), first and third quartiles (hinges) and 1.5-times interquartile range (whiskers) of standardised volume of subcortical structures being compared between diagnostic and OSA groups. Standardisation for this figure was calculated as (raw volume/TIV) * in-sample-mean(TIV). WILL ADD P-VALUES, PEPA.](../figures/subcort_boxplots.jpg){#fig-subco-boxplots}
+![Raw data (points) as well as median (bar), first and third quartiles (hinges) and 1.5-times interquartile range (whiskers) of standardised volume of subcortical structures being compared between diagnostic and OSA groups. Standardisation for this figure was calculated as *(raw volume/TIV)in-sample-mean(TIV)*. The numbers represent p-values associated with the difference between OSA- and OSA+ conditional on diagnosis group (bottom number) and group/OSA interaction (top number). Differences with p-value below 5% false discovery rate threshold applied to the set of comparisons presented in this figure are marked by asterisk.](../figures/subcortical_boxplots.jpg){#fig-subco-boxplots}
 
 ```{r}
 #| label: tbl-subco
-#| tbl-cap: Results of regression analyses estiamting means of subcortical structures' volume conditional on diagnosis group and obstructive sleep apnea status
+#| tbl-cap: Results of regression analyses estimating means of subcortical structures' volume conditional on diagnosis group and obstructive sleep apnea status
 
-read.csv(here("tables","subco_base_regression_coefficients.csv"), sep = ",") %>% # read the file
+read.csv(here("tables","subcortical_regression_coefficients.csv"), sep = ",") %>% # read the file
   
   # pre-format variables
   mutate(
-      Side = unlist( sapply( 1:nrow(.), function(i) with(subco, side[name == y[i]] ) ) , use.names = F),
-      Structure = factor(
-        unlist( sapply( 1:nrow(.), function(i) with(subco, structure[name == y[i]] ) ) , use.names = F),
-        levels = unique(subco$structure),
-        ordered = T
+    Side = unlist( sapply( 1:nrow(.), function(i) with(subco, side[name == y[i]] ) ) , use.names = F),
+    Structure = factor(
+      unlist( sapply( 1:nrow(.), function(i) with(subco, structure[name == y[i]] ) ) , use.names = F),
+      levels = unique(subco$structure),
+      ordered = T
     ),
     Coefficient = case_when(
-        coefficient == "SUBJ1" ~ "Group",
-        coefficient == "AHI.F1" ~ "OSA",
-        coefficient == "SUBJ1:AHI.F1" ~ "Group * OSA"
+      coefficient == "SUBJ1" ~ "Group",
+      coefficient == "AHI.F1" ~ "OSA",
+      coefficient == "SUBJ1:AHI.F1" ~ "Group * OSA"
     ),
     Estimate = rprint(Estimate),
     SE = rprint(Std..Error),
@@ -225,98 +221,237 @@ read.csv(here("tables","subco_base_regression_coefficients.csv"), sep = ",") %>%
 
 ```
 
-![Forest plot showing comparisons of estimated mean age, sex, and TIV adjusted volumes of subcortical structures conditional on group diagnosis and OSA. X-axis represents in-sample standardised difference between mean of OSA- and OSA+ groups estimated from linear regression separately in HC group (circles), PD group (triangles), and difference-in-differences (i.e., interaction) between PD and HC groups (square). Horizontal bars represent non-adjusted 95% confidence intervals. Cases with interaction statistically significantly different from zero after adjusting for 5% false discovery rate via the Benjamini-Hochberg procedure are printed in orange. The figure is based on Supplementary table *subco_base_marginal_effects.csv (NOTE FROM PEPA - placeholder text for a supplementary .csv or .xlsx)*](../figures/subcort_forest.jpg){#fig-subco-forest}
+![Forest plot showing comparisons of estimated mean age, sex, and TIV adjusted volumes of subcortical structures conditional on group diagnosis and OSA. X-axis represents in-sample standardised difference between mean of OSA- and OSA+ groups estimated from linear regression separately in HC group (circles), PD group (triangles), and difference-in-differences (i.e., interaction) between PD and HC groups (square). Horizontal bars represent non-adjusted 95% confidence intervals. Cases with interaction statistically significantly different from zero after adjusting for 5% false discovery rate via the Benjamini-Hochberg procedure are printed in orange. The figure is based on Supplementary table *subcortical_marginals.csv*](../figures/subcortical_forest.jpg){#fig-subco-forest}
 
 ### Hippocampal fields
 
-Across fitted linear regressions, only the model of left Presubiculum body showed deviation from normality of residuals, none of the remaining models showed any deviations from any assumption of linear regression (see Supplementary Table *hippo_base_regression_coefficients.csv [NOTE FROM PEPA - placeholder text for a supplementary .csv or .xlsx]*). The group/OSA interaction was detected using the 5% FDR adjusted threshold in all but right hippocampal tail adjusted volume in the longitudinal axis, in bilateral Presubiculum (both head and body), Subiculum body, and CA1 head as well as in right Parasubiculum, left Subiculum head, right CA4DG head and right HATA (@fig-hippo-forest).
+Across linear regressions, only the model of left Presubiculum body showed deviation from normality of residuals, none of the remaining models showed any deviations from any assumption of linear regression (see Supplementary Table *hippocampi_regression_coefficients.csv*). The group/OSA interaction was detected using the 5% FDR adjusted threshold in all but right hippocampal tail adjusted volume in the longitudinal axis, in bilateral Presubiculum (both head and body), Subiculum body, and CA1 head as well as in right Parasubiculum, left Subiculum head, right CA4DG head and right HATA (see @tbl-hippo and @fig-hippo-forest).
 
-![Forest plot showing comparisons of estimated mean age, sex, and TIV adjusted volumes of hippocampal fields conditional on group diagnosis and OSA. X-axis represents in-sample standardised difference between mean of OSA- and OSA+ groups estimated from linear regression separately in HC group (circles), PD group (triangles), and difference-in-differences (i.e., interaction) between PD and HC groups (square). Horizontal bars represent non-adjusted 95% confidence intervals. Cases with interaction statistically significantly different from zero after adjusting for 5% false discovery rate via the Benjamini-Hochberg procedure are printed in orange. The figure is based on Supplementary table *hippo_base_marginal_effects.csv (NOTE FROM PEPA - placeholder text for a supplementary .csv or .xlsx)*](../figures/hippo_forest.jpg){#fig-hippo-forest}
+```{r}
+#| label: tbl-hippo
+#| tbl-cap: Results of regression analyses estimating means of hippocampal fields volume conditional on diagnosis group and obstructive sleep apnea status
+
+# prepare order of structures
+ord <-
+  hippo[ c("structure","order") ] %>%
+  unique() %>%
+  arrange(order) %>%
+  select(structure) %>%
+  unlist(use.names = F)
+
+# prepare and show the table
+read.csv(here("tables","hippocampi_regression_coefficients.csv"), sep = ",") %>%
+    
+    # pre-format variables
+    mutate(
+      Side = case_when(grepl("_left", y) ~ "Left", grepl("_right", y) ~ "Right"),
+      Structure = factor(
+        unlist( sapply( 1:nrow(.), function(i) with( hippo, unique( structure[name == y[[i]]] ) ) ), use.names = F),
+        levels = rev(ord),
+        ordered = T
+      ),
+      Block = factor(
+        unlist( sapply( 1:nrow(.), function(i) with( hippo, unique( block[name == y[[i]]] ) ) ), use.names = F),
+        levels = unique(hippo$block),
+        ordered = T
+      ),
+      Estimate = rprint(Estimate),
+      SE = rprint(Std..Error),
+      `95% CI` = paste0("[", rprint(X2.5..),", ",rprint(X97.5..), "]"),
+      t = rprint(t.value, 3),
+      p = zerolead(p.value),
+      s = rprint(s.value),
+      sig = sig_FDR
+  ) %>%
+  
+  # keep only variables of interest
+  select(Block, Side, Structure, Estimate, SE, `95% CI`, t, p, s, sig) %>%
+  pivot_wider( names_from = Side, values_from = c("Estimate","SE","95% CI","t","p","s","sig") ) %>%
+  arrange(Block) %>%
+    
+  # format it
+  gt(groupname_col = "Block") %>%
+    
+  # add spanners
+  tab_spanner(label = "Left hemisphere", columns = ends_with("Left"), gather = T) %>%
+  tab_spanner(label = "Right hemisphere", columns = ends_with("Right"), gather = T) %>%
+    
+  # format text
+  cols_align( align = "center", columns = -c(1:2) ) %>%
+  cols_align( align = "left", columns = 2 ) %>%
+  cols_label(
+    starts_with("Estimate_") ~ "{{:beta:}}",
+    starts_with("SE_") ~ "SE",
+    starts_with("95%") ~ "95% CI",
+    starts_with("t_") ~ "t value",
+    starts_with("p_") ~ "p-value",
+    starts_with("s_") ~ "s-value",
+    starts_with("sig") ~ "sig."
+  ) %>%
+    
+  # add footnotes
+  tab_footnote(
+    locations = cells_column_labels( starts_with("Estimate_") ),
+    footnote = "Values based on in-sample standardised outcome predicted by Group, OSA, Group * OSA interaction, age, sex, and TIV via QR decomposition solution to the least squares problem as implemented in R lm() function. Negative values imply smaller OSA+ - OSA- difference in HC compared to PD, the reverse is true for positive values."
+  ) %>%
+    
+  tab_source_note(
+    source_note = 'β, regression coefficient estimate; SE, standard error; CI, confidence interval; OSA, obstructive sleep apnea; sig., coefficients statististically significantly different from 0 after adjusting the p-value threshold for 5% False Discovery Rate via Benjamini-Hochberg adjustment applied to all statistical tests presented in this table are denoted by asterisk "*".'
+  )
+
+```
+
+![Forest plot showing comparisons of estimated mean age, sex, and TIV adjusted volumes of hippocampal fields conditional on group diagnosis and OSA. X-axis represents in-sample standardised difference between mean of OSA- and OSA+ groups estimated from linear regression separately in HC group (circles), PD group (triangles), and difference-in-differences (i.e., interaction) between PD and HC groups (square). Horizontal bars represent non-adjusted 95% confidence intervals. Cases with interaction statistically significantly different from zero after adjusting for 5% false discovery rate via the Benjamini-Hochberg procedure are printed in orange. The figure is based on Supplementary table *hippo_base_marginal_effects.csv*](../figures/hippocampi_forest.jpg){#fig-hippo-forest}
 
 ## Cognitive variables
 
-Number of subjects available for the analysis of cognitive variables is presented in @tbl-cog-data. More retests were available in the PD compared to HC group. All LMMs converged to a stable posterior distribution according to convergence diagnostics ($\hat{R}s \leq 1.01$). According to posterior predictive checks, all models represent data means well in each combination of measurement occasion (Enrollment vs. Retest), group (HC vs. PD) and OSA (OSA+ vs. OSA-) cells, and we did not detect prior sensitivity in any parameter of any model implying that posterior model parameters are likely primarily informed by the data. The raw data are presented in @fig-cog-boxplots and modelling results are presented in @tbl-cog-results. Across analyses, we observed a likely existing occasion * group interaction in index of episodic memory and learning RAVLT immediate recall (IR), and attention indexes TMT-A, PST-D, and PST-W, as well as probably existing main effect of group in case of both parts of TMT as well as almost certainly existing group main effect in GPT bilaterally. Regarding the main effect of group, PD patients showed smaller completion times of both parts of TMT and GPT indicating processing speed, attention, visuo-spatial scanning or fine motor skill with upper extremity deficit in de novo PD. In RAVLT-IR, patients with PD recalled less words in the retest compared to enrollment whereas number of words recalled by HC subjects did not noticeably change implying early verbal memory and learning decline in de novo PD (similar pattern of results was observed in delayed recall of RAVLT, however, it was of uncertain level of effect existence probability, see @tbl-cog-results). On the other hand, in the attention indexes TMT-A, PST-D and PST-W, patients with PD showed slowing in retest compared to enrollment whereas HC subjects showed relatively faster completion times in retest compared to enrollment implying that de novo PD patient may show not only slowing of their performance in sustained attention task but also a lack of practice effect that would be otherwise present. Model means of cognitive effect indexes conditional on OSA and its interaction with group or occasion were of uncertain probability of effect existence across outcome variables.
+Models of RAVLT-FP (False Positives), PST-W, TMT-B, and both GPT showed deviation from homoscedasticity, and models of RAVLT-FP, RAVLT-FN (False Negatives), TMT-A, PST-D, PST-C and both GPT showed deviation from normality of residuals (see Supplementary Table *cognition_regression_coefficients.csv*). None of the diagnosis group/OSA interaction coefficients reach the significance level at the adjusted 5% FDR (see @fig-cog-boxplots and @tbl-cog). On the other hand, the main effect of diagnostic group was detected using the 5% FDR adjusted threshold in TMT-B and GPT bilaterally (see @fig-cog-forest and @fig-cog-boxplots-alt) with PD patients performing worse on average than HC after adjusting for age, sex and education. Consequently, models of TMT-B and GPT were re-fitted via the distributional regression to check robustness to unequal variance in the data. The distributional models converged successfully and improved upon modelling of data distribution generally (@fig-cog-ppc-dens) and the group-specific standard deviation in particular (@fig-cog-ppc-sd). The estimates of model parameters were similar across frequentist and Bayesian distributional models (@tbl-cog-bayes) implying these restuls are likely robust to the unequal variances between HC and PD groups.
 
-*THIS PART ABOUT COGNITION MAY BE BETTER PUT IN A MORE DETAIL TO SUPPLEMENTARY MATERIALS (TOGERTHER WITH ITS METHODS SECTION) AND REPORTED IN THE MAIN TEXT ONLY IN SMALLER POINTS, PEPA.*
+![Raw data (points) as well as median (bar), first and third quartiles (hinges) and 1.5-times interquartile range (whiskers) of indexes of cognitive functions being compared between diagnostic and OSA groups. The numbers represent p-values associated with the difference between OSA- and OSA+ conditional on diagnosis group (bottom number) and group/OSA interaction (top number). Non of the p-value were 5% false discovery rate threshold applied to the set of comparisons presented in this figure.](../figures/cognition_boxplots.jpg){#fig-cog-boxplots}
+
 
 # Appendix
 
-```{r}
-#| label: tbl-cog-data
-#| tbl-cap: Number of participants included in the exploratory analysis of cognition
+![Alternative presentation of raw data (points), median (bar), first and third quartiles (hinges) and 1.5-times interquartile range (whiskers) of indexes of cognitive functions being compared between diagnostic and OSA groups. The numbers represent p-values assiciated with the difference between PD and HC conditional on OSA (bottom number) and the overall difference between PD and HC across OSA groups (top number above brackets). Differences with p-value below 5% false discovery rate threshold applied to the set of comparisons presented in this figue are marked by asterisk.](../figures/cognition_boxplots_group_contrast.jpg){#fig-cog-boxplots-alt}
 
-read.csv(here("tables","cognition_data_n.csv"), sep = ",") %>%
+![Forest plot showing comparisons of estimated mean age, sex, and education adjusted cognitive performance conditional on group diagnosis and OSA. X-axis represents in-sample standardised difference between mean of PD and HC groups estimated from linear regression separately in OSA- group (circles), OSA+ group (triangles), and difference-in-differences (i.e., interaction) between OSA- and OSA+ groups (square). Horizontal bars represent non-adjusted 95% confidence intervals. Cases with main effect of diagnosis group statistically significantly different from zero after adjusting for 5% false discovery rate via the Benjamini-Hochberg procedure are printed in red. Note that the colour scheme is different from previous figures because the current figure shows different contrasts. The figure is based on Supplementary table *cognition_marginals.csv*](../figures/cognition_forest.jpg){#fig-cog-forest}
+
+```{r}
+#| label: tbl-cog
+#| tbl-cap: Results of regression analyses estimating means of cognitive performance conditional on diagnosis group and obstructive sleep apnea status
+
+read.csv(here("tables","cognition_regression_coefficients.csv"), sep = ",") %>% # read the file
   
-  # re-locate columns
-  relocate(enrollment_HC_OSAH, .after = enrollment_HC_OSAL) %>%
-  relocate(enrollment_PD_OSAL, .after = enrollment_HC_OSAH) %>%
-  relocate(enrollment_PD_OSAH, .after = enrollment_PD_OSAL) %>%
-  relocate(retest_HC_OSAH, .after = retest_HC_OSAL) %>%
+  # pre-format variables
+  mutate(
+    
+    # outcome variable cognitive index
+    Index = factor(
+      unlist( sapply( 1:nrow(.), function(i) with( psych, label[variable == y[[i]]] ) ), use.names = F),
+      levels = psych$label,
+      ordered = T
+    ),
+    Coefficient = case_when(
+      coefficient == "SUBJ1" ~ "Group",
+      coefficient == "AHI.F1" ~ "OSA",
+      coefficient == "SUBJ1:AHI.F1" ~ "Group * OSA"
+    ),
+    Estimate = rprint(Estimate),
+    SE = rprint(Std..Error),
+    `95% CI` = paste0("[", rprint(X2.5..),", ",rprint(X97.5..), "]"),
+    t = rprint(t.value, 3),
+    p = zerolead(p.value),
+    s = rprint(s.value),
+    sig = sig_FDR
+) %>%
   
-  # start formatting it  
-  gt(groupname_col = "domain") %>%
-  cols_align(columns = -c(1:2), align = "center") %>%
+  # keep only variables of interest
+  select(Index, Coefficient, Estimate, SE, `95% CI`, t, p, s, sig) %>%
+  arrange(Index) %>%
+    
+  # format it
+  gt(groupname_col = "Index") %>%
+    
+  # format text
+  cols_align( align = "center", columns = -c(1:2) ) %>%
+  cols_label(
+    starts_with("Estimate") ~ "{{:beta:}}",
+    starts_with("SE") ~ "SE",
+    starts_with("95%") ~ "95% CI",
+    starts_with("t") ~ "t value",
+    starts_with("p") ~ "p-value",
+    starts_with("s") ~ "s-value",
+    starts_with("sig") ~ "sig."
+  ) %>%
   
+  # add footnotes
+  tab_footnote(
+    locations = cells_column_labels( starts_with("Estimate_") ),
+    footnote = "Values based on in-sample standardised outcome predicted by Group, OSA, Group * OSA interaction, age, sex, and education via QR decomposition solution to the least squares problem as implemented in R lm() function. Negative values imply smaller adjusted volume of a subcortical structure in PD compared to HC (Group rows), OSA+ compared to OSA- (OSA row) or smaller OSA+ - OSA- difference in HC compared to PD (Group * OSA rows), the reverse is true for positive values."
+  ) %>%
+  
+  tab_source_note(
+    source_note = 'β, regression coefficient estimate; SE, standard error; CI, confidence interval; OSA, obstructive sleep apnea; sig., coefficients statististically significantly different from 0 after adjusting the p-value threshold for 5% False Discovery Rate via Benjamini-Hochberg adjustment applied to all statistical tests presented in this table are denoted by asterisk "*".'
+  )
+
+```
+
+![Posterior predictive check of data distribution predicted by classical (red) and distributional (blue) models of response times variables. Thick lines represent observed data distribution, thin lines represent one hundred random posterior predictive distributions of the model specified above each panel.](../figures/cognition_ppc_dens.jpg){#fig-cog-ppc-dens}
+
+![Posterior predictive check of standard deviation (SD) predicted by classical (red) and distributional (blue) models of response times variables. Thick lines represent SD in observed data, whereas histograms represent SD from all posterior predictive distributions of the model specified above each panel.](../figures/cognition_ppc_stat.jpg){#fig-cog-ppc-sd}
+
+```{r}
+#| label: tbl-cog-bayes
+#| tbl-cap: Comparison of the frequentist regression coefficients and Bayesian distributional regression coefficients accounting for heteroscedasticity
+
+rbind.data.frame(
+  
+  read.csv(here("tables","cognition_bayesian_regressions.csv"), sep = ",") %>%
+    mutate(type = paste0("Bayesian_", ifelse(sigma == 1, "classical", "distributional") ) ),
+    
+  read.csv(here("tables","cognition_regression_coefficients.csv"), sep = ",") %>%
+    filter(y %in% c("tmt_b","gpt_lhk","gpt_phk") ) %>%
+    add_column(sigma = 1) %>%
+    select(y, X, sigma, coefficient, Estimate, Std..Error, X2.5.., X97.5..) %>%
+    rename("Est.Error" = "Std..Error", "Q2.5" = "X2.5..", "Q97.5" = "X97.5..") %>%
+    mutate(type = "frequentist")
+
+) %>%
+  
+  # pre-format variables
+  mutate(
+    
+    Index = factor(
+      unlist( sapply( 1:nrow(.), function(i) with( psych, label[variable == y[[i]]] ) ), use.names = F),
+      levels = psych$label,
+      ordered = T
+    ),
+    
+    Coefficient = case_when(
+      coefficient == "SUBJ1" ~ "Group",
+      coefficient == "AHI.F1" ~ "OSA",
+      coefficient == "SUBJ1:AHI.F1" ~ "Group * OSA"
+    ),
+    
+    Estimate = rprint(Estimate),
+    SE = rprint(Est.Error),
+    `95% CI` = paste0("[", rprint(Q2.5),", ",rprint(Q97.5), "]")
+    
+) %>%
+  
+  select(type, Index, Coefficient, Estimate, SE, `95% CI`) %>%
+  pivot_wider( names_from = type, values_from = c(Estimate, SE, `95% CI`) ) %>%
+  arrange(Index) %>%
+    
+  gt(groupname_col = "Index") %>%
+    
   # add spanners
-  tab_spanner( label = "HC", columns = contains("HC"), gather = F ) %>%
-  tab_spanner( label = "PD", columns = contains("PD"), gather = F ) %>%
-  tab_spanner( label = "Enrollment", columns = starts_with("enrollment"), gather = F ) %>%
-  tab_spanner( label = "Retest", columns = starts_with("retest"), gather = F ) %>%
-  
-  # re-label columns
+  tab_spanner(label = "Frequentist", columns = ends_with("frequentist"), gather = T) %>%
+  tab_spanner(label = "Distributional", columns = ends_with("distributional"), gather = T) %>%
+  tab_spanner(label = "Classical", columns = ends_with("classical"), gather = T) %>%
+  tab_spanner(label = "Bayesian", columns = contains("Bayesian"), gather = T) %>%
+    
+  # format text
+  cols_align( align = "center", columns = -c(1:2) ) %>%
+  cols_align( align = "left", columns = 2 ) %>%
   cols_label(
-    y ~ "",
-    ends_with("OSAL") ~ "OSA-",
-    ends_with("OSAH") ~ "OSA+"
+    starts_with("Estimate_") ~ "{{:beta:}}",
+    starts_with("SE_") ~ "SE",
+    "95% CI_frequentist" ~ "95% CI",
+    starts_with("95% CI_Bayes") ~ "95% PPI"
   ) %>%
   
   # add footnotes
-  tab_source_note(
-    source_note = "The table shows number of participants available for each analysis of cognitive functions conditional on measurement occasion (Enrollment vs. Retest after four years), diagnosis group (HC vs PD), and OSA condition. WILL ADD ALL ACRONYMS, PEPA."
-  )
-
-```
-
-```{r}
-#| label: tbl-cog-results
-#| tbl-cap: Results of the exploratory linear mixed-models analysis of mean cognitive performance conditional on diagnosis group, OSA and occasion of assessment
-
-read.csv(here("tables","cognition_posterior_summaries.csv"), sep = ";") %>%
-  
-  # pre-format
-  pivot_wider( names_from = Y, values_from = c(Median,PPI,pdir) ) %>%
-  gt(groupname_col = "Term") %>%
-  cols_align( columns = -c(1:3), align = "center" ) %>%
-  
-  # add index-specific spanners
-  tab_spanner( label = "RAVLT-IR", columns = ends_with("avlt_1_5"), gather = T ) %>%
-  tab_spanner( label = "RAVLT-B", columns = ends_with("avlt_6"), gather = T ) %>%
-  tab_spanner( label = "RAVLT-DR", columns = ends_with("avlt_8"), gather = T ) %>%
-  tab_spanner( label = "RAVLT-Rec-FP", columns = ends_with("avlt_r_fp"), gather = T ) %>%
-  tab_spanner( label = "RAVLT-Rec-FN", columns = ends_with("avlt_r_fn"), gather = T ) %>%
-  tab_spanner( label = "TMT-A", columns = ends_with("tmt_a"), gather = T ) %>%
-  tab_spanner( label = "PST-D", columns = ends_with("stroop_body"), gather = T ) %>%
-  tab_spanner( label = "PST-W", columns = ends_with("stroop_slova"), gather = T ) %>%
-  tab_spanner( label = "TMT-B", columns = ends_with("tmt_b"), gather = T ) %>%
-  tab_spanner( label = "PST-C", columns = ends_with("stroop_barvy"), gather = T ) %>%
-  tab_spanner( label = "GPT right", columns = ends_with("gpt_phk"), gather = T ) %>%
-  tab_spanner( label = "GPT left", columns = ends_with("gpt_lhk"), gather = T ) %>%
-  
-  # re-label columns
-  cols_label(
-    starts_with("Median") ~ "Md",
-    starts_with("PPI") ~ "95% PPI",
-    starts_with("pdir") ~ "pd"
+  tab_footnote(
+    locations = cells_column_labels( starts_with("Estimate_") ),
+    footnote = "Values based on in-sample standardised outcome predicted by Group, OSA, Group * OSA interaction, age, sex, and TIV via QR decomposition solution to the least squares problem as implemented in R lm() function. Negative values imply smaller OSA+ - OSA- difference in HC compared to PD, the reverse is true for positive values."
   ) %>%
-  
-  # add footnotes
+    
   tab_source_note(
-    source_note = "The table shows model estimates (Type = Estimate), pairwise (Type = Simple main effect), two-way (Type = Two-way interaction) and three-way interaction (Type = Three-way interaction) comparisons of means across indexes of cognitive performance (columns) conditional on measurement occasion (Enrollment vs. Retest after four years), diagnosis group (HC vs PD), and OSA condition. Within each comparison type (table groups), it is advised to interpret the results from bottom-up, i.e., starting with evaluating interactions and evaluating simple effects only when interaction provides enough evidence of effect existence. WILL ADD ALL ACRONYMS, PEPA."
+    source_note = 'β, regression coefficient estimate; SE, standard error; CI, confidence interval; PPI, equal-tailed posterior probability interval; OSA, obstructive sleep apnea.'
   )
 
 ```
-
-![Raw data (points) as well as median (bar), first and third quartiles (hinges) and 1.5-times interquartile range (whiskers) of indexes of cognitive functions being compared between measurement occasion, diagnostic and OSA groups.](../figures/cognition_boxplots.jpg){#fig-cog-boxplots}
 
 # References
 

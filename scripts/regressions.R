@@ -141,14 +141,14 @@ d0 %>%
 # save it
 ggsave(
   plot = last_plot(),
-  filename = here("figures","subcort_boxplots.jpg"),
+  filename = here("figures","subcortical_boxplots.jpg"),
   dpi = 300,
   width = 6,
   height = 10.5
 )
 
 
-## ---- COGNTION ----
+## ---- COGNITION ----
 
 ### ---- PD/OSA interaction ----
 
@@ -167,9 +167,9 @@ p2 <-
         1:nrow(.),
         function(i) case_when(
           term[i] == "PD - CON" & !(y[i] %in% rt_vars) ~ max(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] + 2 * scl[y[i],"SD"],
-          term[i] != "PD - CON" & !(y[i] %in% rt_vars) ~ max(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] + .5 * scl[y[i],"SD"],
+          term[i] != "PD - CON" & !(y[i] %in% rt_vars) ~ max(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] + .3 * scl[y[i],"SD"],
           term[i] == "PD - CON" & y[i] %in% rt_vars ~ exp( -( min(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] - 1 * scl[y[i],"SD"]) ),
-          term[i] != "PD - CON" & y[i] %in% rt_vars ~ exp( -( min(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] - .1 * scl[y[i],"SD"] ) )
+          term[i] != "PD - CON" & y[i] %in% rt_vars ~ exp( -( min(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] - .2 * scl[y[i],"SD"] ) )
         )
       )
     ), # vertical displacement
@@ -349,7 +349,7 @@ lapply(
         write.table(
           
           x = left_join(
-            mass( fit = fit, type = ifelse(y == "hippocampi", "moderation", "fullest") ), # note that the "fullest" option contains some redundancy in its interactions, it's there for completeness
+            mass(fit = fit, type = "fullest"), # note that the "fullest" option contains some redundancy in its interactions, it's there for completeness
             lm_dia(fit), # diagnostics
             by = c("y","X")
           ),
@@ -554,14 +554,14 @@ left_join(
     # significance statement
     `Sig. (5% FDR):` = if_else(sig == "*", T, F),
     
-    # hemisphere of the outcome variable
+    # domain of the outcome variable
     domain = factor(
       unlist( sapply( 1:nrow(.), function(i) with( psych, domain[variable == y[[i]]] ) ), use.names = F),
       levels = unique(psych$domain),
       ordered = T
     ),
     
-    # outcome variable brain structure
+    # outcome variable cognitive index
     index = factor(
       unlist( sapply( 1:nrow(.), function(i) with( psych, label[variable == y[[i]]] ) ), use.names = F),
       levels = rev(psych$label),
