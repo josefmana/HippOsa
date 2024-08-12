@@ -156,7 +156,7 @@ lm_coeff <- function(fit, term = "SUBJ1:AHI.F1", type = "frequentist") {
 }
 
 # extract average per diagnosis slopes and interaction estimates using marginaleffects ----
-mass <- function(fit, fit0, type = "moderation") {
+mass <- function(fit, type = "moderation") {
   
   lapply(
     
@@ -185,7 +185,7 @@ mass <- function(fit, fit0, type = "moderation") {
         
         reduce(
           list(
-            avg_comparisons(fit0[[y]], variables = "SUBJ") %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit0[[y]] ) ) ), .before = 1 ),
+            avg_comparisons(fit[[y]], variables = "SUBJ") %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 ),
             avg_comparisons(fit[[y]], variables = "AHI.F") %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 ),
             avg_comparisons(fit[[y]], variables = "AHI.F", by = "SUBJ") %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 ),
             avg_comparisons(fit[[y]], variables = "AHI.F", by = "SUBJ", hypothesis = "revpairwise") %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 )
@@ -202,7 +202,7 @@ mass <- function(fit, fit0, type = "moderation") {
         reduce(
           list(
             # 'main effects'
-            avg_comparisons(fit0[[y]], variables = "SUBJ") %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit0[[y]] ) ) ), .before = 1 ),
+            avg_comparisons(fit[[y]], variables = "SUBJ") %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 ),
             avg_comparisons(fit[[y]], variables = "AHI.F") %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 ),
             
             # 'simple main effects'

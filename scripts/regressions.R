@@ -13,8 +13,9 @@ library(tidyverse)
 library(marginaleffects)
 library(performance)
 library(ggh4x)
+library(ggpubr)
 library(brms)
-#library(priorsense)
+library(priorsense)
 library(bayesplot)
 library(patchwork)
 
@@ -89,41 +90,38 @@ df <- df %>% mutate( across( all_of( rownames(scl) ), ~ (.x - scl[cur_column(), 
 ## ---- BRAINS ----
 
 # prepare results for p-values reported in the boxplot
-p <-
+p1 <-
+  
+  # fit model and extract contrasts
   fit_reg(d = df, outcomes = subco$scaled, X = "SUBJ * AHI.F", w = F) %>%
   mass() %>%
-  mutate( sig = bh_adjust(p.value) )
+  
+  # re-format for plotting
+  mutate(
+    p = paste0( zerolead(p.value), bh_adjust(p.value) ), # p-value labels
+    y.position = unlist( sapply( 1:nrow(.), function(i) ifelse( term[i] == "PD - CON", max(df[ , y[i]]) + 3 * sd(df[ , y[i]]), max(df[ , y[i]]) + .5 * sd(df[ , y[i]]) ) ) ), # vertical displacement
+    x = "Diagnosis",
+    Diagnosis = if_else(SUBJ == "PD", "PD", "HC"),
+    group1 = if_else(term == "PD - CON", "PD", Diagnosis),
+    group2 = if_else(term == "PD - CON", "HC", Diagnosis),
+    side = unlist( sapply( 1:nrow(.), function(i) with( subco, side[scaled == y[i]] ) ), use.names = F ),
+    structure = factor( unlist( sapply( 1:nrow(.), function(i) with( subco, structure[scaled == y[i]] ) ), use.names = F ), levels = unique(subco$structure), ordered = T )
+  )
 
 # plot it
 d0 %>%
   
+  # prepare data
   select(SUBJ, AHI.F, all_of(subco$scaled) ) %>%
-  pivot_longer(
-    cols = all_of(subco$scaled),
-    values_to = "volume",
-    names_to = "struct"
-  ) %>%
+  pivot_longer( cols = all_of(subco$scaled), values_to = "volume", names_to = "struct" ) %>%
   mutate(
-    side = unlist(
-      sapply( 1:nrow(.), function(i) with( subco, side[scaled == struct[i]] ) ),
-      use.names = F
-    ),
-    structure = factor(
-      unlist(
-        sapply( 1:nrow(.), function(i) with( subco, structure[scaled == struct[i]] ) ),
-        use.names = F
-      ),
-      levels = unique(subco$structure),
-      ordered = T
-    ),
+    side = unlist(sapply( 1:nrow(.), function(i) with( subco, side[scaled == struct[i]] ) ), use.names = F),
+    structure = factor(unlist(sapply( 1:nrow(.), function(i) with( subco, structure[scaled == struct[i]] ) ), use.names = F),levels = unique(subco$structure), ordered = T),
     Diagnosis = if_else(SUBJ == "PD", "PD", "HC"),
-    `OSA: ` = factor(
-      if_else(AHI.F == "H", "OSA+", "OSA-"),
-      levels = c("OSA-","OSA+"),
-      ordered = T
-    )
+    `OSA: ` = factor(if_else(AHI.F == "H", "OSA+", "OSA-"), levels = c("OSA-","OSA+"), ordered = T)
   ) %>%
   
+  # plotting proper
   ggplot() +
   aes(y = volume, x = Diagnosis) +
   geom_boxplot( aes(fill = `OSA: `), width = .6, position = position_dodge(.7), linewidth = .75 ) +
@@ -131,8 +129,14 @@ d0 %>%
   labs( y = bquote("Standardized volume "(mm^3) ) ) +
   facet_grid2( structure ~ side, scales = "free_y", independent = "y" ) +
   scale_fill_manual( values = c("#64CDCC","#F9A729") ) +
+  stat_pvalue_manual(subset(p1, term != "PD - CON"), label = "p", size = 3, position = position_dodge(.7), remove.bracket = T) + # p-values for simple main effects
+  stat_pvalue_manual(subset(p1, term == "PD - CON"), label = "p", size = 3, tip.length = .1, vjust = -.33) + # p-values for interactions
+  scale_y_continuous( expand = expansion(mult = c(0, .19) ) ) +
   theme_bw(base_size = 10) +
-  theme(legend.position = "bottom")
+  theme(
+    legend.position = "bottom",
+    panel.grid = element_blank()
+  )
 
 # save it
 ggsave(
@@ -140,35 +144,51 @@ ggsave(
   filename = here("figures","subcort_boxplots.jpg"),
   dpi = 300,
   width = 6,
-  height = 10
+  height = 10.5
 )
 
 
 ## ---- COGNTION ----
 
+### ---- PD/OSA interaction ----
+
+# prepare results for p-values reported in the boxplot
+p2 <-
+  
+  # fit model and extract contrasts
+  fit_reg(d = df, outcomes = psych$variable, X = "SUBJ * AHI.F", w = F) %>%
+  mass() %>%
+  
+  # re-format for plotting
+  mutate(
+    p = paste0( zerolead(p.value), bh_adjust(p.value) ), # p-value labels
+    y.position = unlist(
+      sapply(
+        1:nrow(.),
+        function(i) case_when(
+          term[i] == "PD - CON" & !(y[i] %in% rt_vars) ~ max(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] + 2 * scl[y[i],"SD"],
+          term[i] != "PD - CON" & !(y[i] %in% rt_vars) ~ max(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] + .5 * scl[y[i],"SD"],
+          term[i] == "PD - CON" & y[i] %in% rt_vars ~ exp( -( min(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] - 1 * scl[y[i],"SD"]) ),
+          term[i] != "PD - CON" & y[i] %in% rt_vars ~ exp( -( min(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] - .1 * scl[y[i],"SD"] ) )
+        )
+      )
+    ), # vertical displacement
+    x = "Diagnosis",
+    Diagnosis = if_else(SUBJ == "PD", "PD", "HC"),
+    group1 = if_else(term == "PD - CON", "PD", Diagnosis),
+    group2 = if_else(term == "PD - CON", "HC", Diagnosis),
+    test = factor(unlist(sapply( 1:nrow(.), function(i) with( psych, label[variable == y[i]] ) ), use.names = F), levels = psych$label, ordered = T)
+  )
+
+# plot it
 d0 %>%
   
   select(SUBJ, AHI.F, all_of(psych$variable) ) %>%
-  pivot_longer(
-    cols = all_of(psych$variable),
-    values_to = "score",
-    names_to = "test"
-  ) %>%
+  pivot_longer(cols = all_of(psych$variable), values_to = "score", names_to = "test") %>%
   mutate(
-    test = factor(
-      unlist(
-        sapply( 1:nrow(.), function(i) with( psych, label[variable == test[i]] ) ),
-        use.names = F
-      ),
-      levels = psych$label,
-      ordered = T
-    ),
+    test = factor(unlist(sapply( 1:nrow(.), function(i) with( psych, label[variable == test[i]] ) ), use.names = F), levels = psych$label, ordered = T),
     Diagnosis = if_else(SUBJ == "PD", "PD", "HC"),
-    `OSA: ` = factor(
-      if_else(AHI.F == "H", "OSA+", "OSA-"),
-      levels = c("OSA-","OSA+"),
-      ordered = T
-    )
+    `OSA: ` = factor(if_else(AHI.F == "H", "OSA+", "OSA-"), levels = c("OSA-","OSA+"), ordered = T)
   ) %>%
   
   ggplot() +
@@ -178,13 +198,86 @@ d0 %>%
   labs( y = "Test score" ) +
   facet_wrap( ~test, scales = "free", nrow = 5 ) +
   scale_fill_manual( values = c("#64CDCC","#F9A729") ) +
+  stat_pvalue_manual(subset(p2, term != "PD - CON"), label = "p", size = 3, position = position_dodge(.7), remove.bracket = T) + # p-values for simple main effects
+  stat_pvalue_manual(subset(p2, term == "PD - CON"), label = "p", size = 3, tip.length = .1, vjust = -.33) + # p-values for interactions
+  scale_y_continuous( expand = expansion(mult = c(0, .19) ) ) +
   theme_bw(base_size = 11) +
-  theme(legend.position = "bottom")
+  theme(
+    legend.position = "bottom",
+    panel.grid = element_blank()
+  )
 
 # save it
 ggsave(
   plot = last_plot(),
   filename = here("figures","cognition_boxplots.jpg"),
+  dpi = 300,
+  width = 9,
+  height = 9
+)
+
+
+### ---- PD main effects ----
+
+# prepare results for p-values reported in the boxplot
+p3 <-
+  
+  fit_reg(d = df, outcomes = psych$variable, X = "SUBJ * AHI.F", w = F) %>%
+  mass(type = "fullest") %>%
+  filter(term == "SUBJ") %>%
+  
+  # re-format for plotting
+  mutate(
+    p = paste0( zerolead(p.value), bh_adjust(p.value) ), # p-value labels
+    y.position = unlist(
+      sapply(
+        1:nrow(.),
+        function(i) case_when(
+          is.na(AHI.F[i]) & !(y[i] %in% rt_vars) ~ max(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] + 1 * scl[y[i],"SD"],
+          !is.na(AHI.F[i]) & !(y[i] %in% rt_vars) ~ max(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] + .2 * scl[y[i],"SD"],
+          is.na(AHI.F[i]) & y[i] %in% rt_vars ~ exp( -( min(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] - .5 * scl[y[i],"SD"]) ),
+          !is.na(AHI.F[i]) & y[i] %in% rt_vars ~ exp( -( min(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] - .1 * scl[y[i],"SD"] ) )
+        )
+      )
+    ), # vertical displacement
+    x = "OSA",
+    OSA = if_else(AHI.F == "H", "OSA+", "OSA-"),
+    group1 = if_else(is.na(OSA), "OSA-", OSA),
+    group2 = if_else(is.na(OSA), "OSA+", OSA),
+    test = factor(unlist(sapply( 1:nrow(.), function(i) with( psych, label[variable == y[i]] ) ), use.names = F), levels = psych$label, ordered = T)
+  )
+
+# plot it
+d0 %>%
+  
+  select(SUBJ, AHI.F, all_of(psych$variable) ) %>%
+  pivot_longer(cols = all_of(psych$variable), values_to = "score", names_to = "test") %>%
+  mutate(
+    test = factor(unlist(sapply( 1:nrow(.), function(i) with( psych, label[variable == test[i]] ) ), use.names = F), levels = psych$label, ordered = T),
+    Diagnosis = if_else(SUBJ == "PD", "PD", "HC"),
+    OSA = factor(if_else(AHI.F == "H", "OSA+", "OSA-"), levels = c("OSA-","OSA+"), ordered = T)
+  ) %>%
+  
+  ggplot() +
+  aes(y = score, x = OSA) +
+  geom_boxplot( aes(fill = Diagnosis), width = .6, position = position_dodge(.7), linewidth = .75 ) +
+  geom_dotplot( aes(fill = Diagnosis), binaxis = "y", stackdir = "center", position = position_dodge(.7), dotsize = 1.5 ) +
+  labs(y = "Test score", x = NULL) +
+  facet_wrap( ~ test, scales = "free", nrow = 5 ) +
+  scale_fill_manual( values = c("deepskyblue","red2") ) +
+  stat_pvalue_manual( subset(p3, !is.na(OSA) ), label = "p", size = 3, position = position_dodge(.7), remove.bracket = T) + # p-values for simple main effects
+  stat_pvalue_manual( subset(p3, is.na(OSA) ), label = "p", size = 3, tip.length = 0, vjust = -.2) + # p-values for interactions
+  scale_y_continuous( expand = expansion(mult = c(0, .19) ) ) +
+  theme_bw(base_size = 11) +
+  theme(
+    legend.position = "bottom",
+    panel.grid = element_blank()
+  )
+
+# save it
+ggsave(
+  plot = last_plot(),
+  filename = here("figures","cognition_boxplots_group_contrast.jpg"),
   dpi = 300,
   width = 9,
   height = 9
@@ -256,7 +349,7 @@ lapply(
         write.table(
           
           x = left_join(
-            mass( fit = fit, fit0 = fit, type = ifelse(y == "hippocampi", "moderation", "fullest") ), # note that the "fullest" option contains some redundancy in its interactions, it's there for completeness
+            mass( fit = fit, type = ifelse(y == "hippocampi", "moderation", "fullest") ), # note that the "fullest" option contains some redundancy in its interactions, it's there for completeness
             lm_dia(fit), # diagnostics
             by = c("y","X")
           ),
