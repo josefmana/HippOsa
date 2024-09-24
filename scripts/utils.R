@@ -112,7 +112,6 @@ lm_coeff <- function(fit, term = "SUBJ1:AHI.F1", type = "frequentist") {
         t() %>%
         as.data.frame() %>%
         rename("p value" = "Pr(>|t|)") %>%
-        mutate( `s value` = -log(`p value`, base = 2) ) %>%
         cbind( t( confint(fit[[y]])[term, ] ) ) %>%
         relocate(`2.5 %`, .before = `t value`) %>%
         relocate(`97.5 %`, .before = `t value`) %>%
@@ -126,6 +125,8 @@ lm_coeff <- function(fit, term = "SUBJ1:AHI.F1", type = "frequentist") {
       mutate_if(is.list, unlist) %>%
       rownames_to_column("y") %>%
       mutate(
+        `q value` = p.adjust(`p value`, method = "BH"),
+        `s value` = -log(`p value`, base = 2),
         sig_PCER = if_else(`p value` < .05, "*", ""),
         sig_FDR = bh_adjust(`p value`),
         sig_FWER = if_else(`p value` < .05/nrow(.), "*", "")
