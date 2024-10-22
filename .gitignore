@@ -11,9 +11,8 @@ mods/**/*.rds
 **/*.log
 **/*.tex
 
-# ignore all _ folders & files
+# ignore folders starting with an underscore
 _*/
-**/_*
 
 # History files
 .Rprofile

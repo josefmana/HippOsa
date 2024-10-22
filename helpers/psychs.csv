@@ -1,13 +1,20 @@
-variable;label;domain;likelihood;LHS;label2
-avlt_1_5;RAVLT-IR;Memory;gaussian;avlt_1_5 ~ ;RAVLT-IR (words)
-avlt_6;RAVLT-B;Memory;binomial;avlt_6 ~ ;RAVLT-B (words)
-avlt_8;RAVLT-DR;Memory;binomial;avlt_8 ~ ;RAVLT-DR (words)
-avlt_r_fp;RAVLT-Rec-FP;Memory;binomial;avlt_r_fp ~ ;RAVLT-Rec-FP (words)
-avlt_r_fn;RAVLT-Rec-FN;Memory;binomial;avlt_r_fn ~ ;RAVLT-Rec-FN (words)
-tmt_a;TMT-A;Attention;gaussian;tmt_a ~ ;TMT-A (seconds)
-stroop_body;PST-D;Attention;gaussian;stroop_body ~ ;PST-D (seconds)
-stroop_slova;PST-W;Attention;gaussian;stroop_slova ~ ;PST-W (seconds)
-tmt_b;TMT-B;Executive function;gaussian;tmt_b ~ ;TMT-B (seconds)
-stroop_barvy;PST-C;Executive function;gaussian;stroop_barvy ~ ;PST-C (seconds)
-gpt_phk;GPT right;Processing speed;gaussian;gpt_phk ~ ;GPT right (seconds)
-gpt_lhk;GPT left;Processing speed;gaussian;gpt_lhk ~ ;GPT left (seconds)
+variable;label;domain;likelihood;LHS;label2;pairs
+avlt_1_5;RAVLT-IR;Memory;gaussian;avlt_1_5 ~ ;RAVLT-IR (words);NA
+avlt_6;RAVLT-B;Memory;binomial;avlt_6 ~ ;RAVLT-B (words);NA
+avlt_8;RAVLT-DR;Memory;binomial;avlt_8 ~ ;RAVLT-DR (words);Memory
+avlt_r_fp;RAVLT-Rec-FP;Memory;binomial;avlt_r_fp ~ ;RAVLT-Rec-FP (words);NA
+avlt_r_fn;RAVLT-Rec-FN;Memory;binomial;avlt_r_fn ~ ;RAVLT-Rec-FN (words);NA
+tmt_a;TMT-A;Attention;gaussian;tmt_a ~ ;TMT-A (seconds);Attention
+stroop_body;PST-D;Attention;gaussian;stroop_body ~ ;PST-D (seconds);NA
+stroop_slova;PST-W;Attention;gaussian;stroop_slova ~ ;PST-W (seconds);NA
+tmt_b;TMT-B;Executive function;gaussian;tmt_b ~ ;TMT-B (seconds);NA
+stroop_barvy;PST-C;Executive function;gaussian;stroop_barvy ~ ;PST-C (seconds);Executive
+gpt_phk;GPT right;Processing speed;gaussian;gpt_phk ~ ;GPT right (seconds);NA
+gpt_lhk;GPT left;Processing speed;gaussian;gpt_lhk ~ ;GPT left (seconds);NA
+wais_iii_ciselny_pozadu;DS backwards;NA;NA;NA;NA;Attention
+fluency;Semantic fluency;NA;NA;NA;NA;Executive
+wais_iii_podob;WAIS-R Sim;NA;NA;NA;NA;Language
+bnt60;BNT-60;NA;NA;NA;NA;Language
+bvmt_r_delay;BVMT;NA;NA;NA;NA;Memory
+jolo;JoL;NA;NA;NA;NA;Visuospatial
+clox_i;CLOX I;NA;NA;NA;NA;Visuospatial
