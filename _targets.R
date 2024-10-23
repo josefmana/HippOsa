@@ -9,36 +9,52 @@ tar_option_set( packages = c(
   "here", # for path listing
   "openxlsx", # for data reading
   "tidyverse", # for data wrangling
+  "psych", # for data description
   "performance", # for regression diagnostics 
-  "emmeans" # for models' marginal means estimation
+  "marginaleffects", # for models' marginal means estimation
+  "ggh4x", # for improved facet_grid
+  "ggpubr", # for plotting boxplots with p values
+  "brms", # for Bayesian regressions
+  "bayesplot", # for posterior predictive checks
+  "priorsense", # for checking sensitivity to powerscaling
+  "patchwork" # for plots arranging
   
 ) )
 
 # Load all in-house functions:
 tar_source()
 
+# Use multiple cores for model fitting:
+options( mc.cores = parallel::detectCores() )
+
 # Replace the target list below with your own:
 list(
   
   # read data ----
-  tar_target(
-    
-    files = data.frame(
-      lhippo = here("_raw", "Tabhipposubfields_lhx.xlsx"),
-      rhippo = here("_raw", "Tabhipposubfields_rhx.xlsx"),
-      subcor = here("_raw", "Tabsubcortex1_RBD.xlsx"),
-      psych = here("_raw", "RBDBIOPDCON_DATA_2024-07-17_1146.csv"),
-      motor = here("_raw", "BIOPD_MDSUPDRSIII.xlsx")
-    ),
-
-    helpers = data.frame(
-      psychvar = here("helpers","psychs.csv"),
-      calculat = here("_raw","calculator_final_v7_c_301116.xlsx"),
-      calc_sheet = "equations"
-
-    )
-  ),
+  tar_target( files, data_paths() ),
+  tar_target( helpers, extract_helpers() ),
+  tar_target( raw_data, import_data(files, helpers) ),
+  tar_target( rt_variables, extract_rt_variables(helpers) ),
+  tar_target( preprocessed_data, preprocess_data(raw_data, helpers, rt_variables) ),
+  tar_target( scales, preprocess_data(raw_data, helpers, rt_variables, return = "scl") ),
   
-  # 
+  # data analysis ----
+  
+  ## ---- description ----
+  tar_target( descriptives, describe_data(raw_data) ),
+  
+  ## ---- visualisation ----
+  tar_target( boxplot_brains, boxplots(raw_data, preprocessed_data, helpers, scales, rt_variables,which = "brains") ),
+  tar_target( boxplot_cognition_osa, boxplots(raw_data, preprocessed_data, helpers, scales, rt_variables,which = "cognition_1") ),
+  tar_target( boxplot_cognition_pd, boxplots(raw_data, preprocessed_data, helpers, scales, rt_variables,which = "cognition_2") ),
+  
+  ## ---- regression ----
+  tar_target( linear_regressions, fit_regressions(preprocessed_data, helpers) ),
+  tar_target( formulas, set_formulas() ),
+  tar_target( bayesian_regressions, fit_bayesian(preprocessed_data, formulas) ),
+  tar_target( prior_sensitivity, model_check(bayesian_regressions, helpers, formulas, "prior_sense") ),
+  tar_target( posterior_predictive_checks, model_check(bayesian_regressions, helpers, formulas, "ppc") ),
+  tar_target( bayesian_coefficients, extract_coefficients(bayesian_regressions) )
+  
   
 )

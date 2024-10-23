@@ -12,7 +12,7 @@ stroop_barvy;PST-C;Executive function;gaussian;stroop_barvy ~ ;PST-C (seconds);E
 gpt_phk;GPT right;Processing speed;gaussian;gpt_phk ~ ;GPT right (seconds);NA
 gpt_lhk;GPT left;Processing speed;gaussian;gpt_lhk ~ ;GPT left (seconds);NA
 wais_iii_ciselny_pozadu;DS backwards;NA;NA;NA;NA;Attention
-fluency;Semantic fluency;NA;NA;NA;NA;Executive
+vf_zvi;Semantic fluency;NA;NA;NA;NA;Executive
 wais_iii_podob;WAIS-R Sim;NA;NA;NA;NA;Language
 bnt60;BNT-60;NA;NA;NA;NA;Language
 bvmt_r_delay;BVMT;NA;NA;NA;NA;Memory
