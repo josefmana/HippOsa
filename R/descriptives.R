@@ -4,7 +4,7 @@ describe_data <- function(data) {
   
   # list variables to be described
   cont <- c("AGE","EDU.Y","BMI","age_first_symptom","disease_duration","moca","mds_updrs_i","mds_updrs_ii","mds_updrs_iii_total","mds_updrs_iii_axial","mds_updrs_iii_rigidityakineasia","mds_updrs_iii_tremor")
-  nomin <- c("GENDER","RBD")
+  nomin <- c("GENDER","RBD","MCI")
   
   # pre-process data
   d0 <- data %>%
@@ -55,15 +55,21 @@ describe_data <- function(data) {
     statextract(y = "GENDER", stat = "z") %>%
     select(-y)
   
-  # add logistic regression of iRBD
-  tab1[tab1$y == "RBD", "AHI.F1"] <-
+  # add logistic regression for iRBD and MCI
+  for ( i in c("RBD","MCI") ) tab1[tab1$y == i, "AHI.F1"] <-
     
-    summary( glm( RBD ~ AHI.F, family = binomial(), data = d0 ) )$coefficients[ , c("z value","Pr(>|z|)") ] %>%
-    statextract(y = "RBD", stat = "z") %>%
+    summary(
+      glm(
+        as.formula( paste0(i," ~ AHI.F") ),
+        family = binomial(),
+        data = subset(d0, SUBJ == "PD")
+      )
+    )$coefficients[ , c("z value","Pr(>|z|)") ] %>%
+    statextract(y = i, stat = "z") %>%
     select(-y)
   
   # add results of continuous variables for PD only
-  for( i in with( tab1, y[CON_H == "-"] )[-1] ) tab1[ tab1$y == i, "AHI.F1"] <-
+  for( i in with( tab1, y[CON_H == "-"] )[-1:-2] ) tab1[ tab1$y == i, "AHI.F1"] <-
     
     summary( lm( as.formula( paste0(i," ~ AHI.F") ), data = d0 ) )$coefficients[ , c("t value","Pr(>|t|)") ] %>%
     statextract(y = i, stat = "t") %>%

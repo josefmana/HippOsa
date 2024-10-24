@@ -173,14 +173,14 @@ import_data <- function(files, helpers) {
     mutate(
       flags = rowSums( across( starts_with("mci_") ), na.rm = T),
       nas = rowSums( is.na( across( starts_with("mci_") ) ) ),
-      pd_mci = case_when(
+      MCI = case_when(
         flags >= 2 ~ 1,
         flags == 0 & nas < 2 ~ 0,
         flags == 1 & nas == 0 ~ 0,
         .default = NA
       )
     ) %>%
-    select(Study.ID, pd_mci)
+    select(Study.ID, MCI)
   
   # add PD-MCI to the data and return
   return( left_join(data, mci) )
