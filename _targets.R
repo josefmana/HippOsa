@@ -11,7 +11,6 @@ tar_option_set( packages = c(
   "tidyverse", # for data wrangling
   "psych", # for data description
   "performance", # for regression diagnostics 
-  "marginaleffects", # for models' marginal means estimation
   "ggh4x", # for improved facet_grid
   "ggpubr", # for plotting boxplots with p values
   "brms", # for Bayesian regressions

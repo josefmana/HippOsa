@@ -4,7 +4,7 @@ describe_data <- function(data) {
   
   # list variables to be described
   cont <- c("AGE","EDU.Y","BMI","age_first_symptom","disease_duration","moca","mds_updrs_i","mds_updrs_ii","mds_updrs_iii_total","mds_updrs_iii_axial","mds_updrs_iii_rigidityakineasia","mds_updrs_iii_tremor")
-  nomin <- c("GENDER","RBD","MCI")
+  nomin <- c("GENDER","RBD","PDMCI_I")
   
   # pre-process data
   d0 <- data %>%
@@ -55,8 +55,8 @@ describe_data <- function(data) {
     statextract(y = "GENDER", stat = "z") %>%
     select(-y)
   
-  # add logistic regression for iRBD and MCI
-  for ( i in c("RBD","MCI") ) tab1[tab1$y == i, "AHI.F1"] <-
+  # add logistic regression for iRBD and PD-MCI level I
+  for ( i in c("RBD","PDMCI_I") ) tab1[tab1$y == i, "AHI.F1"] <-
     
     summary(
       glm(

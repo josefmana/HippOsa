@@ -119,6 +119,7 @@ import_data <- function(files, helpers) {
   
   # prepare objects for PD-MCI labelling
   calculator <-
+    
     helpers$calculator %>%
     filter( X1 %in% with( helpers$psychohelp, label[!is.na(pairs)] ) ) %>%
     mutate(
@@ -131,12 +132,26 @@ import_data <- function(files, helpers) {
   
   # prepare thresholds for BNT-60
   bnt_thresh <- data.frame(
+
     age_bottom = c(0, 0, 60, 60),
     age_top = c(60, 60, Inf, Inf),
     edu_bottom = c(0, 12, 0, 12),
     edu_top = c(12, Inf, 12, Inf),
     threshold = c(49, 52, 50, 53)
+
   )
+  
+  # prepare a table for MoCA (i.e., lvl. I) based on https://doi.org/10.1080/23279095.2015.1065261
+  moca_thresh <- data.frame(
+    
+    age_bottom = c(0, 0, 74, 74),
+    age_top = c(74, 74, Inf, Inf),
+    edu_bottom = c(0, 12, 0, 12),
+    edu_top = c(12, Inf, 12, Inf),
+    M = c(24.62, 26.43, 22.98, 24.79),
+    SD = c(2.66, 2.37, 2.88, 2.47)
+    
+  ) %>% mutate(threshold = M - 1.5 * SD)
 
   # add MCI flag for each test of each patient
   mci <-
@@ -165,22 +180,31 @@ import_data <- function(files, helpers) {
             yes = 1,
             no = 0
           )
+      ),
+      PDMCI_I = sapply(
+        1:nrow(.),
+        function(i)
+          ifelse(
+            test = moca[i] <= with(moca_thresh, threshold[AGE[i] > age_bottom & AGE[i] <= age_top & EDU.Y[i] > edu_bottom & EDU.Y[i] <= edu_top] ),
+            yes = 1,
+            no = 0
+          )
       )
     ) %>%
     
     # evaluate PD-MCI
-    select(Study.ID, starts_with("mci_") ) %>%
+    select(Study.ID, starts_with("mci_"), PDMCI_I) %>%
     mutate(
       flags = rowSums( across( starts_with("mci_") ), na.rm = T),
       nas = rowSums( is.na( across( starts_with("mci_") ) ) ),
-      MCI = case_when(
+      PDMCI_II = case_when(
         flags >= 2 ~ 1,
         flags == 0 & nas < 2 ~ 0,
         flags == 1 & nas == 0 ~ 0,
         .default = NA
       )
     ) %>%
-    select(Study.ID, MCI)
+    select(Study.ID, PDMCI_I, PDMCI_II)
   
   # add PD-MCI to the data and return
   return( left_join(data, mci) )
