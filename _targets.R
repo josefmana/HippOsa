@@ -10,7 +10,8 @@ tar_option_set( packages = c(
   "openxlsx", # for data reading
   "tidyverse", # for data wrangling
   "psych", # for data description
-  "performance", # for regression diagnostics 
+  "emmeans", # for avg_comparisons in boxplots
+  "performance", # for regression diagnostics
   "ggh4x", # for improved facet_grid
   "ggpubr", # for plotting boxplots with p values
   "brms", # for Bayesian regressions
@@ -42,18 +43,21 @@ list(
   ## ---- description ----
   tar_target( descriptives, describe_data(raw_data) ),
   
-  ## ---- visualisation ----
-  tar_target( boxplot_brains, boxplots(raw_data, preprocessed_data, helpers, scales, rt_variables,which = "brains") ),
-  tar_target( boxplot_cognition_osa, boxplots(raw_data, preprocessed_data, helpers, scales, rt_variables,which = "cognition_1") ),
-  tar_target( boxplot_cognition_pd, boxplots(raw_data, preprocessed_data, helpers, scales, rt_variables,which = "cognition_2") ),
-  
   ## ---- regression ----
-  tar_target( linear_regressions, fit_regressions(preprocessed_data, helpers) ),
+  tar_target( regressions, fit_regressions(preprocessed_data, helpers) ),
+  tar_target( summaries, summarise_regressions(regressions) ),
+  
   tar_target( formulas, set_formulas() ),
   tar_target( bayesian_regressions, fit_bayesian(preprocessed_data, formulas) ),
   tar_target( prior_sensitivity, model_check(bayesian_regressions, helpers, formulas, "prior_sense") ),
   tar_target( posterior_predictive_checks, model_check(bayesian_regressions, helpers, formulas, "ppc") ),
-  tar_target( bayesian_coefficients, extract_coefficients(bayesian_regressions) )
+  tar_target( bayesian_coefficients, extract_coefficients(bayesian_regressions) ),
+  
+  ## ---- visualisation ----
+  tar_target( boxplot_brains, boxplots(raw_data, preprocessed_data, regressions$subcortical, helpers, scales, rt_variables,which = "brains") ),
+  tar_target( boxplot_cognition_osa, boxplots(raw_data, preprocessed_data, regressions$cognition, helpers, scales, rt_variables,which = "cognition_1") ),
+  tar_target( boxplot_cognition_pd, boxplots(raw_data, preprocessed_data, regressions$cognition, helpers, scales, rt_variables,which = "cognition_2") )
+  
   
   
 )

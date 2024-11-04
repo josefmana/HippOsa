@@ -35,34 +35,46 @@ fit_regressions <- function(df, help){
         if(y == "cognition") vars <- variable else vars <- unique(name)
         
         # fit the models
-        fit <- fit_reg(df, vars, X = forms[r, "X"], w = F)
+        return( fit_reg(df, vars, X = forms[r, "X"], w = F) )
         
-        # regression coefficients with threshold-based decisions
-        # do full analysis for subcortical structures and cognition, interaction only for hippocampal substructures
-        if (y == "hippocampi") return(
-          
-          left_join( lm_coeff(fit, term = "SUBJ1:AHI.F1") ,lm_dia(fit), by = c("y","X") )
-          
-        ) else  return(
-          
-          left_join(
-            
-            rbind.data.frame(
-              lm_coeff(fit, term = "SUBJ1"),
-              lm_coeff(fit, term = "AHI.F1"),
-              lm_coeff(fit, term = "SUBJ1:AHI.F1")
-            ),
-            lm_dia(fit),
-            by = c("y","X")
-            
-          ) %>% mutate( sig_FDR = bh_adjust(`p value`) ) # re-calculate Benjamini-Hochberg adjusted significance statements
-
-        )
       }
     )
   ) %>% return()
 
 }
+
+
+# REGRESSIONS RESULTS ----
+summarise_regressions <- function(fit) lapply(
+  
+  set_names( names(fit) ),
+  function(y) {
+    
+    # regression coefficients with threshold-based decisions
+    # do full analysis for subcortical structures and cognition, interaction only for hippocampal substructures
+    if (y == "hippocampi") return(
+      
+      left_join( lm_coeff(fit[[y]], term = "SUBJ1:AHI.F1") ,lm_dia(fit[[y]]), by = c("y","X") )
+      
+    ) else  return(
+      
+      left_join(
+        
+        rbind.data.frame(
+          lm_coeff(fit[[y]], term = "SUBJ1"),
+          lm_coeff(fit[[y]], term = "AHI.F1"),
+          lm_coeff(fit[[y]], term = "SUBJ1:AHI.F1")
+        ),
+        lm_dia(fit[[y]]),
+        by = c("y","X")
+        
+      ) %>% mutate( sig_FDR = bh_adjust(`p value`) ) # re-calculate Benjamini-Hochberg adjusted significance statements
+      
+    )
+    
+  }
+)
+
 
 # SET-UP FORMULAS FOR HETEROSCEDASTIC MODELS ----
 set_formulas <- function()  list(

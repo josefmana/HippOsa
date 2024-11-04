@@ -154,7 +154,7 @@ lm_coeff <- function(fit, term = "SUBJ1:AHI.F1", type = "frequentist") {
 }
 
 
-# Extract average per diagnosis slopes and interaction estimates using marginaleffects ----
+# Extract simple effects and esimates via emmeans ----
 mass <- function(fit, type = "moderation") {
   
   lapply(
@@ -166,59 +166,48 @@ mass <- function(fit, type = "moderation") {
         
         full_join(
           
-          avg_comparisons(fit[[y]], variables = "AHI.F", by = "SUBJ") %>%
-            as.data.frame() %>%
-            mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 ),
+          emmeans(fit[[y]], specs = pairwise ~ AHI.F | SUBJ) %>%
+            contrast(interaction = "consec") %>%
+            as_tibble() %>%
+            mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), term = "AHI.F", .before = 1 ),
           
-          avg_comparisons(fit[[y]], variables = "AHI.F", by = "SUBJ", hypothesis = "revpairwise") %>%
-            as.data.frame() %>%
-            mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 )
+          emmeans(fit[[y]], specs = pairwise ~ AHI.F * SUBJ) %>%
+            contrast(interaction = "consec") %>%
+            as_tibble() %>%
+            mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 ) %>%
+            rename("term" = "SUBJ_consec")
           
         ) %>%
           
           as.data.frame() %>%
-          select( -starts_with("predicted") ) %>%
+          rename("contrast" = "AHI.F_consec") %>%
+          mutate( contrast = if_else(term == "PD - CON", NA, contrast) ) %>% # for compatibility with previous versions of the script
           mutate(y = y, .before = 1)
         
       } else if (type == "full") {
         
         reduce(
+          
           list(
-            avg_comparisons(fit[[y]], variables = "SUBJ") %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 ),
-            avg_comparisons(fit[[y]], variables = "AHI.F") %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 ),
-            avg_comparisons(fit[[y]], variables = "AHI.F", by = "SUBJ") %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 ),
-            avg_comparisons(fit[[y]], variables = "AHI.F", by = "SUBJ", hypothesis = "revpairwise") %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 )
-          ),
-          full_join
-        ) %>%
-          as.data.frame() %>%
-          select( -starts_with("predicted") ) %>%
-          mutate(y = y, .before = 1)
-        
-        
-      } else if (type == "fullest") {
-        
-        reduce(
-          list(
+            
             # 'main effects'
-            avg_comparisons(fit[[y]], variables = "SUBJ") %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 ),
-            avg_comparisons(fit[[y]], variables = "AHI.F") %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 ),
+            emmeans(fit[[y]], specs = pairwise ~ SUBJ) %>% contrast("consec") %>% as_tibble() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), term = "SUBJ", .before = 1 ),
+            emmeans(fit[[y]], specs = pairwise ~ AHI.F) %>% contrast("consec") %>% as_tibble() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), term = "AHI.F", .before = 1 ),
             
             # 'simple main effects'
-            avg_comparisons(fit[[y]], variables = "AHI.F", by = "SUBJ") %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 ),
-            avg_comparisons(fit[[y]], variables = "SUBJ", by = "AHI.F") %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 ),
+            emmeans(fit[[y]], specs = pairwise ~ AHI.F | SUBJ) %>% contrast("consec") %>% as_tibble() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), term = "AHI.F", .before = 1 ),
+            emmeans(fit[[y]], specs = pairwise ~ SUBJ | AHI.F) %>% contrast("consec") %>% as_tibble() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), term = "SUBJ", .before = 1 ),
             
             # interactions
-            avg_comparisons(fit[[y]], variables = "AHI.F", by = "SUBJ", hypothesis = "revpairwise") %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 ),
-            avg_comparisons(fit[[y]], variables = "SUBJ", by = "AHI.F", hypothesis = "pairwise") %>% as.data.frame() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 )
+            emmeans(fit[[y]], specs = pairwise ~ AHI.F * SUBJ) %>% contrast(interaction = "consec") %>% as_tibble() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 ) %>% rename("term" = "SUBJ_consec"),
+            emmeans(fit[[y]], specs = pairwise ~ SUBJ * AHI.F) %>% contrast(interaction = "consec") %>% as_tibble() %>% mutate( X = sub( paste0(y," ~ "), "", c( formula( fit[[y]] ) ) ), .before = 1 ) %>% rename("term" = "AHI.F_consec")
             
-            
-          ),
-          full_join
+          ), full_join
+
         ) %>%
-          as.data.frame() %>%
-          select( -starts_with("predicted") ) %>%
-          mutate(y = y, .before = 1)
+          
+          mutate(y = y, .before = 1) %>%
+          select( -ends_with("consec") )
         
       }
     }
