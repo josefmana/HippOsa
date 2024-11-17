@@ -152,6 +152,20 @@ fit_bayesian <- function(df, formulas) {
 }
 
 
+## ---- RE-WRITE FORMULAS FOR PLOTTING ----
+re_formulate <- function(form) form %>%
+  
+  gsub("SUBJ", "Group", . ) %>%
+  gsub("AGE", "Age", . ) %>%
+  gsub("GENDER", "Sex", . ) %>%
+  gsub("AHI.F", "OSA", . , fixed = T) %>%
+  gsub("EDU.Y", "Education", . , fixed = T) %>%
+  gsub("tmt_b", "TMT-B", . ) %>%
+  gsub("gpt_phk", "GPT right", . ) %>%
+  gsub("gpt_lhk", "GPT left", . ) %>%
+  gsub("sigma", "\u03C3", . )
+
+
 ## ---- POSTERIOR PREDICTIVE CHECKS ----
 model_check <- function(fit, help, formulas, which = "prior_sense") {
   
@@ -197,17 +211,27 @@ model_check <- function(fit, help, formulas, which = "prior_sense") {
                   labs(
                     x = paste0( with(help$psych, label[variable == y]), " (-log seconds)" ),
                     title = case_when(
-                      i == "varequal" ~ paste0( as.character(formulas[[i]][[y]])[1], ", sigma ~ 1" ),
+                      
+                      i == "varequal" ~ paste0(
+                        
+                        as.character(formulas[[i]][[y]])[1],
+                        "\nsigma ~ 1"
+                        
+                      ) %>% re_formulate(),
+                      
                       i == "heteroscedastic" ~ paste0(
-                        as.character(formulas[[i]][[y]])[1] , ", ",
+                        
+                        as.character(formulas[[i]][[y]])[1] , "\n",
                         sub( ")", "", sub( "list(sigma = ", "", as.character(formulas[[i]][[y]])[2], fixed = T ) )
-                      )
+                        
+                      ) %>% re_formulate()
                     )
                   ) +
                   theme(
                     legend.position = "none",
                     panel.grid = element_blank(),
-                    plot.title = element_text(hjust = 0.5, size = 10)
+                    plot.title = element_text(hjust = 0.5, size = 10),
+                    plot.background = element_rect(fill = NA, colour  = 'black', linetype = "dashed", size = .5)
                   )
               }
             )
@@ -229,8 +253,8 @@ model_check <- function(fit, help, formulas, which = "prior_sense") {
         #  plot = last_plot(),
         #  filename = here( "figures", paste0("cognition_ppc_", sub("_.*","",k), ".jpg") ),
         #  dpi = 300,
-        #  width = 15,
-        #  height = 15
+        #  width = 12,
+        #  height = 12
         #)
         
       }

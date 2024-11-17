@@ -1,6 +1,6 @@
 # Prepares interaction boxplots for brain or cognition variables
 
-boxplots <- function(d0, df, help, scl, rt_vars, which = "brains") {
+boxplots <- function(d0, df, fit, help, scl, rt_vars, which = "brains") {
   
   # BRAINS ----
   if (which == "brains") {
@@ -9,44 +9,48 @@ boxplots <- function(d0, df, help, scl, rt_vars, which = "brains") {
     p <-
       
       # fit model and extract contrasts
-      fit_reg(d = df, outcomes = help$subco$scaled, X = "SUBJ * AHI.F", w = F) %>%
-      mass() %>%
+      fit %>% mass() %>%
       
       # re-format for plotting
       mutate(
         p = paste0( zerolead(p.value), bh_adjust(p.value) ), # p-value labels
-        y.position = unlist( # vertical displacement
-          sapply(
-            1:nrow(.),
-            function(i)
-              ifelse(
-                term[i] == "PD - CON",
-                max(df[ , y[i]]) + 3 * sd(df[ , y[i]]),
-                max(df[ , y[i]]) + .5 * sd(df[ , y[i]])
-              )
-          )
-        ),
         x = "Diagnosis",
-        Diagnosis = if_else(SUBJ == "PD", "PD", "HC"),
+        Diagnosis = if_else(SUBJ == "PD", "PD", "CON"),
         group1 = if_else(term == "PD - CON", "PD", Diagnosis),
-        group2 = if_else(term == "PD - CON", "HC", Diagnosis),
+        group2 = if_else(term == "PD - CON", "CON", Diagnosis),
         side = unlist(
           sapply(
             1:nrow(.),
             function(i)
-              with( help$subco, side[scaled == y[i]] )
+              with( help$subco, side[name == y[i]] )
           ),
           use.names = F
         ),
         structure = factor(
           unlist(
-            sapply( 1:nrow(.), function(i) with( help$subco, structure[scaled == y[i]] ) ),
+            sapply( 1:nrow(.), function(i) with( help$subco, structure[name == y[i]] ) ),
             use.names = F
           ),
           levels = unique(help$subco$structure),
           ordered = T
         )
       )
+    
+    # add vertical displacements
+    # for some rason did not work in the tidyverse pipe
+    p$y.position <-  unlist(
+      
+      sapply(
+        1:nrow(p),
+        function(i)
+          ifelse(
+            p$term[i] == "PD - CON",
+            max( df[ , paste0("c",p$y[i]) ] ) + 3 * sd( df[ , paste0("c",p$y[i]) ] ),
+            max( df[ , paste0("c",p$y[i]) ] ) + .5 * sd( df[ , paste0("c",p$y[i]) ] )
+          )
+      )
+      
+    )
     
     # plot it
     fig <- d0 %>%
@@ -67,7 +71,7 @@ boxplots <- function(d0, df, help, scl, rt_vars, which = "brains") {
           levels = unique(help$subco$structure),
           ordered = T
         ),
-        Diagnosis = if_else(SUBJ == "PD", "PD", "HC"),
+        Diagnosis = if_else(SUBJ == "PD", "PD", "CON"),
         `OSA: ` = factor(if_else(AHI.F == "H", "OSA+", "OSA-"), levels = c("OSA-","OSA+"), ordered = T)
       ) %>%
       
@@ -128,27 +132,15 @@ boxplots <- function(d0, df, help, scl, rt_vars, which = "brains") {
     p <-
       
       # fit model and extract contrasts
-      fit_reg(d = df, outcomes = help$psych$variable, X = "SUBJ * AHI.F", w = F) %>%
-      mass() %>%
+      fit %>% mass() %>%
       
       # re-format for plotting
       mutate(
         p = paste0( zerolead(p.value), bh_adjust(p.value) ), # p-value labels
-        y.position = unlist(
-          sapply(
-            1:nrow(.),
-            function(i) case_when(
-              term[i] == "PD - CON" & !(y[i] %in% rt_vars) ~ max(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] + 2 * scl[y[i],"SD"],
-              term[i] != "PD - CON" & !(y[i] %in% rt_vars) ~ max(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] + .3 * scl[y[i],"SD"],
-              term[i] == "PD - CON" & y[i] %in% rt_vars ~ exp( -( min(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] - 1 * scl[y[i],"SD"]) ),
-              term[i] != "PD - CON" & y[i] %in% rt_vars ~ exp( -( min(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] - .2 * scl[y[i],"SD"] ) )
-            )
-          )
-        ), # vertical displacement
         x = "Diagnosis",
-        Diagnosis = if_else(SUBJ == "PD", "PD", "HC"),
+        Diagnosis = if_else(SUBJ == "PD", "PD", "CON"),
         group1 = if_else(term == "PD - CON", "PD", Diagnosis),
-        group2 = if_else(term == "PD - CON", "HC", Diagnosis),
+        group2 = if_else(term == "PD - CON", "CON", Diagnosis),
         test = factor(
           unlist(
             sapply( 1:nrow(.), function(i) with( help$psych, label[variable == y[i]] ) ),
@@ -158,6 +150,19 @@ boxplots <- function(d0, df, help, scl, rt_vars, which = "brains") {
           ordered = T
         )
       )
+    
+    # add vertical displacement
+    p$y.position = unlist(
+      sapply(
+        1:nrow(p),
+        function(i) case_when(
+          p$term[i] == "PD - CON" & !(p$y[i] %in% rt_vars) ~ max(df[ , p$y[i]], na.rm = T) * scl[p$y[i],"SD"] + scl[p$y[i],"M"] + 2 * scl[p$y[i],"SD"],
+          p$term[i] != "PD - CON" & !(p$y[i] %in% rt_vars) ~ max(df[ , p$y[i]], na.rm = T) * scl[p$y[i],"SD"] + scl[p$y[i],"M"] + .3 * scl[p$y[i],"SD"],
+          p$term[i] == "PD - CON" & p$y[i] %in% rt_vars ~ exp( -( min(df[ , p$y[i]], na.rm = T) * scl[p$y[i],"SD"] + scl[p$y[i],"M"] - 1 * scl[p$y[i],"SD"]) ),
+          p$term[i] != "PD - CON" & p$y[i] %in% rt_vars ~ exp( -( min(df[ , p$y[i]], na.rm = T) * scl[p$y[i],"SD"] + scl[p$y[i],"M"] - .2 * scl[p$y[i],"SD"] ) )
+        )
+      )
+    )
     
     # plot it
     fig <- d0 %>%
@@ -173,7 +178,7 @@ boxplots <- function(d0, df, help, scl, rt_vars, which = "brains") {
           levels = help$psych$label,
           ordered = T
         ),
-        Diagnosis = if_else(SUBJ == "PD", "PD", "HC"),
+        Diagnosis = if_else(SUBJ == "PD", "PD", "CON"),
         `OSA: ` = factor(if_else(AHI.F == "H", "OSA+", "OSA-"), levels = c("OSA-","OSA+"), ordered = T)
       ) %>%
       
@@ -227,24 +232,11 @@ boxplots <- function(d0, df, help, scl, rt_vars, which = "brains") {
     # prepare results for p-values reported in the boxplot
     p <-
       
-      fit_reg(d = df, outcomes = help$psych$variable, X = "SUBJ * AHI.F", w = F) %>%
-      mass(type = "fullest") %>%
-      filter(term == "SUBJ") %>%
+      fit %>%  mass(type = "full") %>% filter(term == "SUBJ") %>%
       
       # re-format for plotting
       mutate(
         p = paste0( zerolead(p.value), bh_adjust(p.value) ), # p-value labels
-        y.position = unlist(
-          sapply(
-            1:nrow(.),
-            function(i) case_when(
-              is.na(AHI.F[i]) & !(y[i] %in% rt_vars) ~ max(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] + 1 * scl[y[i],"SD"],
-              !is.na(AHI.F[i]) & !(y[i] %in% rt_vars) ~ max(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] + .2 * scl[y[i],"SD"],
-              is.na(AHI.F[i]) & y[i] %in% rt_vars ~ exp( -( min(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] - .5 * scl[y[i],"SD"]) ),
-              !is.na(AHI.F[i]) & y[i] %in% rt_vars ~ exp( -( min(df[ , y[i]], na.rm = T) * scl[y[i],"SD"] + scl[y[i],"M"] - .1 * scl[y[i],"SD"] ) )
-            )
-          )
-        ), # vertical displacement
         x = "OSA",
         OSA = if_else(AHI.F == "H", "OSA+", "OSA-"),
         group1 = if_else(is.na(OSA), "OSA-", OSA),
@@ -258,6 +250,19 @@ boxplots <- function(d0, df, help, scl, rt_vars, which = "brains") {
           ordered = T
         )
       )
+    
+    # add vertical displacement
+    p$y.position = unlist(
+      sapply(
+        1:nrow(p),
+        function(i) case_when(
+          is.na(p$AHI.F[i]) & !(p$y[i] %in% rt_vars) ~ max(df[ , p$y[i]], na.rm = T) * scl[p$y[i],"SD"] + scl[p$y[i],"M"] + 1 * scl[p$y[i],"SD"],
+          !is.na(p$AHI.F[i]) & !(p$y[i] %in% rt_vars) ~ max(df[ , p$y[i]], na.rm = T) * scl[p$y[i],"SD"] + scl[p$y[i],"M"] + .2 * scl[p$y[i],"SD"],
+          is.na(p$AHI.F[i]) & p$y[i] %in% rt_vars ~ exp( -( min(df[ , p$y[i]], na.rm = T) * scl[p$y[i],"SD"] + scl[p$y[i],"M"] - .5 * scl[p$y[i],"SD"]) ),
+          !is.na(p$AHI.F[i]) & p$y[i] %in% rt_vars ~ exp( -( min(df[ , p$y[i]], na.rm = T) * scl[p$y[i],"SD"] + scl[p$y[i],"M"] - .1 * scl[p$y[i],"SD"] ) )
+        )
+      )
+    )
     
     # plot it
     fig <- d0 %>%
@@ -273,7 +278,7 @@ boxplots <- function(d0, df, help, scl, rt_vars, which = "brains") {
           levels = help$psych$label,
           ordered = T
         ),
-        `Diagnosis: ` = if_else(SUBJ == "PD", "PD", "HC"),
+        `Diagnosis: ` = if_else(SUBJ == "PD", "PD", "CON"),
         OSA = factor(if_else(AHI.F == "H", "OSA+", "OSA-"), levels = c("OSA-","OSA+"), ordered = T)
       ) %>%
       
