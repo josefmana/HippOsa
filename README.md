@@ -16,7 +16,3 @@ To run the analyses, use the following code:
 #install.packages("targets")
 targets::tar_make()
 ```
-
-The current pipeline looks as follows:
-
-![](pipeline.jpeg)
