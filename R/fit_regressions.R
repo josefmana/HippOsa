@@ -15,7 +15,7 @@ fit_regressions <- function(df, help){
   forms <- data.frame(
     object = c("subco","hippo","psych"),
     y = c("subcortical", "hippocampi","cognition"),
-    X = c(rep("SUBJ * AHI.F + AGE + GENDER + SBTIV", 2), "SUBJ * AHI.F + AGE + GENDER + EDU.Y")
+    X = c(rep("SUBJ * AHI.F + AGE + GENDER + sBTIV", 2), "SUBJ * AHI.F + AGE + GENDER + EDU.Y")
   )
   # Loop through types of regressions (base vs interaction), and structures
   lapply(set_names(seq_len(nrow(forms)), forms$y), function(r) {
