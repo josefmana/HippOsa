@@ -13,6 +13,9 @@ import_data <- function(files, helpers) {
   data <- with(files, {
     list(
       # MRI volummetry estimates
+      subcor = read.xlsx(subcor) |>
+        rename_with(~gsub("-", "_", .x)) |>
+        rename_with(~gsub(",", ".", .x, fixed = TRUE)),
       hippo = left_join(
         read.xlsx(rhippo) |>
           rename_with(~gsub("-", "_", .x)) |>
@@ -22,8 +25,6 @@ import_data <- function(files, helpers) {
         by = "Study.ID",
         suffix = c("_rhx", "_lhx")
       ),
-      subcor = read.xlsx(subcor) |>
-        rename_with(~ gsub("-", "_", .x)),
       # Psychology data
       psych = read.csv(psych, sep = ",") |>
         mutate(
@@ -33,8 +34,7 @@ import_data <- function(files, helpers) {
         select(Study.ID, event, all_of( c(helpers$psychohelp$variable,"moca"))) |>
         filter(event == "enrollment"),
       # MDS-UPDRS data
-      motor =
-        read.xlsx(motor, startRow = 2, check.names = TRUE) |>
+      motor = read.xlsx(motor, startRow = 2, check.names = TRUE) |>
         mutate(
           age_first_symptom = time_length(difftime(První.motorický.příznak.PN..MM.RRRR., Datum.narození), "years"),
           disease_duration = time_length(difftime(Datum.vyšetření, První.motorický.příznak.PN..MM.RRRR.), "years"),
@@ -57,6 +57,12 @@ import_data <- function(files, helpers) {
       ) |>
       # Pull the data to a single file:
       reduce(left_join)
+  })
+  # Add standardised volumes of subcortical structures:
+  with(helpers, {
+    for(i in seq_len(nrow(subco))) {
+      data[ , subco$scaled[i]] <<- (data[ , subco$name[i]] / data$sBTIV) * mean(data$sBTIV)
+    }
   })
   # Prepare objects for PD-MCI labelling:
   calculator <- helpers$calculator |>

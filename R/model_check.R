@@ -41,9 +41,9 @@ model_check <- function(fit, help, formulas, which = "prior_sense") {
               title = case_when(
                 i == "varequal" ~ paste0(as.character(formulas[[i]][[y]])[1], "\nsigma ~ 1"),
                 i == "heteroscedastic" ~ paste0(as.character(formulas[[i]][[y]])[1] , "\n", sub(")", "", sub("list(sigma = ", "", as.character(formulas[[i]][[y]])[2], fixed = TRUE))
-                ) |>
-                  re_formulate()
-              )
+                )
+              ) |>
+                re_formulate()
             ) +
             theme(
               legend.position = "none",

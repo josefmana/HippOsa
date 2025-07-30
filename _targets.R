@@ -51,5 +51,4 @@ list(
   tar_target(boxplot_brains, boxplots(raw_data, preprocessed_data, regressions$subcortical, helpers, scales, rt_variables, which = "brains")),
   tar_target(boxplot_cognition_osa, boxplots(raw_data, preprocessed_data, regressions$cognition, helpers, scales, rt_variables, which = "cognition_1")),
   tar_target(boxplot_cognition_pd, boxplots(raw_data, preprocessed_data, regressions$cognition, helpers, scales, rt_variables, which = "cognition_2"))
-
 )

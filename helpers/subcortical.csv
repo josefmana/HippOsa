@@ -1,13 +1,15 @@
 name,scaled,side,structure
-L_hippocampus,cL_hippocampus,Left,Hippocampus
-L_amygdala,cL_amygdala,Left,Amygdala
+lhWhiteMatter,clhWhiteMatter,Left,White Matter
+Left_Hippocampus,cLeft_Hippocampus,Left,Hippocampus
+Left_Amygdala,cLeft_Amygdala,Left,Amygdala
 Left_Thalamus,cLeft_Thalamus,Left,Thalamus
 Left_Caudate,cLeft_Caudate,Left,Caudate
 Left_Putamen,cLeft_Putamen,Left,Putamen
 Left_Pallidum,cLeft_Pallidum,Left,Pallidum
 Left_Accumbens_area,cLeft_Accumbens_area,Left,Accumbens
-R_hippocampus,cR_hippocampus,Right,Hippocampus
-R_amygdala,cR_amygdala,Right,Amygdala
+rhWhiteMatter,crhWhiteMatter,Right,White Matter
+Right_Hippocampus,cRight_Hippocampus,Right,Hippocampus
+Right_Amygdala,cRight_Amygdala,Right,Amygdala
 Right_Thalamus,cRight_Thalamus,Right,Thalamus
 Right_Caudate,cRight_Caudate,Right,Caudate
 Right_Putamen,cRight_Putamen,Right,Putamen
