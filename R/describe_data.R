@@ -25,12 +25,14 @@ describe_data <- function(data) {
   nomin <- c(
     "GENDER",
     #"RBD",
+    "Path_MTA_A",
+    "Path_MTA_H",
     "PDMCI_I",
     "PDMCI_II"
   )
   # Pre-process data:
   d0 <- data |>
-    mutate(across(all_of(c(nomin,"SUBJ", "AHI.F")), as.factor)) |>
+    mutate(across(all_of(c(nomin, "SUBJ", "AHI.F")), as.factor)) |>
     within({
       contrasts(SUBJ) <- -contr.sum(2)/2 # CON = -0.5, PD = 0.5
       contrasts(AHI.F) <- -contr.sum(2)/2 # High = -0.5, Low = 0.5
@@ -56,11 +58,13 @@ describe_data <- function(data) {
     }),
     by = "y"
   )
-  # Add logistic regression for gender:
-  tab1[tab1$y == "GENDER", c("SUBJ1", "AHI.F1", "SUBJ1:AHI.F1")] <-
-    summary(glm(GENDER ~ SUBJ * AHI.F, family = binomial(), data = d0))$coefficients[ , c("z value","Pr(>|z|)")] |>
-    statextract(y = "GENDER", stat = "z") |>
-    select(-y)
+  # Add logistic regression for common variables:
+  for(i in c("GENDER", "Path_MTA_A", "Path_MTA_H")) {
+    tab1[tab1$y == i, c("SUBJ1", "AHI.F1", "SUBJ1:AHI.F1")] <-
+      summary(glm(as.formula(paste0(i, " ~ SUBJ * AHI.F")), family = binomial(), data = d0))$coefficients[ , c("z value","Pr(>|z|)")] |>
+      statextract(y = i, stat = "z") |>
+      select(-y)
+  }
   # Add logistic regression for iRBD and PD-MCI level I
   #for(i in c("RBD","PDMCI_I")) {
   for(i in c("PDMCI_I", "PDMCI_II")) {
@@ -70,14 +74,14 @@ describe_data <- function(data) {
         family = binomial(),
         data = subset(d0, SUBJ == "PD")
       )
-    )$coefficients[ , c("z value","Pr(>|z|)") ] |>
+    )$coefficients[ , c("z value","Pr(>|z|)")] |>
       statextract(y = i, stat = "z") |>
       select(-y)
   }
   # Add results of continuous variables for PD only:
-  for(i in with( tab1, y[CONH == "-"] )[-1:-2]) {
+  for(i in with(tab1, y[CONH == "-"] )[-1:-2]) {
     tab1[ tab1$y == i, "AHI.F1"] <-
-      summary(lm( as.formula(paste0(i," ~ AHI.F")), data = d0))$coefficients[ , c("t value", "Pr(>|t|)") ] |>
+      summary(lm(as.formula(paste0(i," ~ AHI.F")), data = d0))$coefficients[ , c("t value", "Pr(>|t|)")] |>
       statextract(y = i, stat = "t") |>
       select(-y)
   }

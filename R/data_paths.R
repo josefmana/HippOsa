@@ -10,6 +10,7 @@ data_paths <- function() {
     rhippo = here("_raw", "Tabhipposubfields_rhx.xlsx"),
     subcor = here("_raw", "asegTab.xlsx"),
     psych = here("_raw", "RBDBIOPDCON_DATA_2024-07-17_1146.csv"),
-    motor = here("_raw", "BIOPD_MDSUPDRSIII.xlsx")
+    motor = here("_raw", "BIOPD_MDSUPDRSIII.xlsx"),
+    mta = here("_raw", "MTA_table .xlsx")
   )
 }

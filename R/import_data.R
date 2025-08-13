@@ -25,6 +25,8 @@ import_data <- function(files, helpers) {
         by = "Study.ID",
         suffix = c("_rhx", "_lhx")
       ),
+      mta = read.xlsx(mta) |>
+        select(Study.ID, contains("MTA")),
       # Psychology data
       psych = read.csv(psych, sep = ",") |>
         mutate(
